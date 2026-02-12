@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { Student } from '../models/Student.js';
 import { Session } from '../models/Session.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const TOKEN_EXPIRY = '7d';
 
 const SALT_ROUNDS = 10;
 
@@ -153,8 +157,15 @@ export async function loginStudent(req, res) {
     const studentObj = student.toObject ? student.toObject() : student;
     delete studentObj.password;
 
+    const token = jwt.sign(
+      { userId: student._id, role: 'Student' },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
     return res.status(200).json({
       message: 'Logged in successfully.',
+      token,
       student: studentObj,
     });
   } catch (err) {
@@ -162,5 +173,29 @@ export async function loginStudent(req, res) {
     return res.status(500).json({
       message: err.message || 'Login failed. Please try again.',
     });
+  }
+}
+
+/**
+ * Get current logged-in student. Requires auth middleware (req.user set from token).
+ */
+export async function getMe(req, res) {
+  try {
+    if (req.user.role !== 'Student') {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const student = await Student.findById(req.user.userId);
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found.' });
+    }
+
+    const studentObj = student.toObject ? student.toObject() : student;
+    delete studentObj.password;
+
+    return res.status(200).json({ student: studentObj });
+  } catch (err) {
+    console.error('getMe error:', err);
+    return res.status(500).json({ message: 'Something went wrong.' });
   }
 }

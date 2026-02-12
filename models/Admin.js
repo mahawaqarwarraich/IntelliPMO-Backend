@@ -3,8 +3,8 @@ import { User } from './User.js';
 
 const adminSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true, trim: true },
-    session: { type: String, required: true, match: /^\d{4}-\d{4}$/ },
+    designation: { type: String, trim: true, default: null },
+    session_id: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Session' },
   },
   { _id: false }
 );
