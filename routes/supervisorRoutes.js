@@ -1,8 +1,9 @@
 import express from 'express';
-import { registerSupervisor } from '../controllers/supervisorController.js';
+import { registerSupervisor, loginSupervisor } from '../controllers/supervisorController.js';
 
 const router = express.Router();
 
 router.post('/register', registerSupervisor);
+router.post('/login', loginSupervisor);
 
 export default router;
