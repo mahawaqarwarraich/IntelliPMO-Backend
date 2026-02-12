@@ -1,16 +1,50 @@
 import mongoose from 'mongoose';
-import { User } from './User.js';
+import { DEPARTMENTS } from './constants.js';
 
 const supervisorSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true, trim: true },
-    domain: { type: String, required: true, trim: true },
-    designation: { type: String, required: true, trim: true },
+    fullName: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 100,
+    },
+    department: {
+      type: String,
+      required: true,
+      enum: DEPARTMENTS,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      select: false,
+    },
+    domain_id: {
+      type: mongoose.Types.ObjectId,
+      ref: 'Domain',
+      required: true,
+      trim: true,
+    },
+    designation: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
-  { _id: false }
+  { timestamps: true }
 );
 
-const Supervisor = User.discriminator('Supervisor', supervisorSchema);
+supervisorSchema.index({ email: 1 });
+
+const Supervisor = mongoose.model('Supervisor', supervisorSchema);
 
 export { Supervisor };
 export default Supervisor;

@@ -1,20 +1,72 @@
 import mongoose from 'mongoose';
-import { User } from './User.js';
+import { DEPARTMENTS } from './constants.js';
 
 const studentSchema = new mongoose.Schema(
   {
-    rollNo: { type: String, required: true, unique: true, match: /^\d{8}-\d{3}$/ },
-    session: { type: String, required: true, match: /^\d{4}-\d{4}$/ },
-    session_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Session', default: null },
-    group_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null },
-    cgpa: { type: Number, min: 0, max: 4, default: null },
-    obtainedMarks: { type: Number, min: 0, default: null },
-    finalGrade: { type: String, trim: true, default: null },
+    fullName: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 100,
+    },
+    department: {
+      type: String,
+      required: true,
+      enum: DEPARTMENTS,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      select: false,
+    },
+    rollNo: {
+      type: String,
+      required: true,
+      unique: true,
+      match: /^\d{8}-\d{3}$/,
+    },
+    session_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Session',
+      default: null,
+    },
+    group_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Group',
+      default: null,
+    },
+    cgpa: {
+      type: Number,
+      min: 0,
+      max: 4,
+      default: null,
+    },
+    obtainedMarks: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    finalGrade: {
+      type: String,
+      trim: true,
+      default: null,
+    },
   },
-  { _id: false }
+  { timestamps: true }
 );
 
-const Student = User.discriminator('Student', studentSchema);
+studentSchema.index({ email: 1 });
+studentSchema.index({ rollNo: 1 });
+
+const Student = mongoose.model('Student', studentSchema);
 
 export { Student };
 export default Student;

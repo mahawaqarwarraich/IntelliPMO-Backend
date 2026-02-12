@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DEPARTMENTS } from './User.js';
+import { DEPARTMENTS } from './constants.js';
 
 const sessionSchema = new mongoose.Schema(
   {

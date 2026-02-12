@@ -105,9 +105,8 @@ export async function registerStudent(req, res) {
       });
     }
     if (err.code === 11000) {
-      const field = Object.keys(err.keyPattern || {})[0] || 'field';
       return res.status(409).json({
-        message: `A student with this ${field} already exists.`,
+        message: 'An account with this email or roll number already exists.',
       });
     }
     console.error('registerStudent error:', err);

@@ -1,4 +1,4 @@
-export { User, DEPARTMENTS } from './User.js';
+export { DEPARTMENTS } from './constants.js';
 export { Session } from './Session.js';
 export { Admin } from './Admin.js';
 export { Student } from './Student.js';
