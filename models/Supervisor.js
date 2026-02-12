@@ -28,10 +28,14 @@ const supervisorSchema = new mongoose.Schema(
       select: false,
     },
     domain_id: {
-      type: mongoose.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Domain',
       required: true,
-      trim: true,
+    },
+    session_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Session',
+      default: null,
     },
     designation: {
       type: String,
