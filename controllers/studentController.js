@@ -112,3 +112,55 @@ export async function registerStudent(req, res) {
     });
   }
 }
+
+/**
+ * Validate required login fields.
+ * Returns { valid: false, message } or { valid: true }.
+ */
+function validateLoginBody(body) {
+  if (body.rollNo == null || (typeof body.rollNo === 'string' && body.rollNo.trim() === '')) {
+    return { valid: false, message: 'Roll number is required.' };
+  }
+  if (body.password == null || (typeof body.password === 'string' && body.password.trim() === '')) {
+    return { valid: false, message: 'Password is required.' };
+  }
+  if (typeof body.rollNo !== 'string' || !/^\d{8}-\d{3}$/.test(body.rollNo.trim())) {
+    return { valid: false, message: 'Roll number must be in format 21011519-085.' };
+  }
+  return { valid: true };
+}
+
+export async function loginStudent(req, res) {
+  try {
+    const validation = validateLoginBody(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const { rollNo, password } = req.body;
+    const rollNoTrimmed = rollNo.trim();
+
+    const student = await Student.findOne({ rollNo: rollNoTrimmed }).select('+password');
+    if (!student) {
+      return res.status(401).json({ message: 'Invalid roll number or password.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, student.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid roll number or password.' });
+    }
+
+    const studentObj = student.toObject ? student.toObject() : student;
+    delete studentObj.password;
+
+    return res.status(200).json({
+      message: 'Logged in successfully.',
+      student: studentObj,
+    });
+  } catch (err) {
+    console.error('loginStudent error:', err);
+    return res.status(500).json({
+      message: err.message || 'Login failed. Please try again.',
+    });
+  }
+}
