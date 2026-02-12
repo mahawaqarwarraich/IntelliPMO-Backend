@@ -1,0 +1,114 @@
+import bcrypt from 'bcryptjs';
+import { Student } from '../models/Student.js';
+import { Session } from '../models/Session.js';
+
+const SALT_ROUNDS = 10;
+
+/**
+ * Validate required registration fields.
+ * Returns { valid: false, message } or { valid: true }.
+ */
+function validateRegisterBody(body) {
+  const required = ['fullName', 'department', 'rollNo', 'cgpa', 'email', 'password', 'session'];
+  for (const field of required) {
+    if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
+      return { valid: false, message: `Missing or empty field: ${field}.` };
+    }
+  }
+  const cgpa = Number(body.cgpa);
+  if (Number.isNaN(cgpa) || cgpa < 0 || cgpa > 4) {
+    return { valid: false, message: 'CGPA must be a number between 0 and 4.' };
+  }
+  if (typeof body.session !== 'string' || !/^\d{4}-\d{4}$/.test(body.session.trim())) {
+    return { valid: false, message: 'Session must be in format YYYY-YYYY (e.g. 2021-2025).' };
+  }
+  if (typeof body.rollNo !== 'string' || !/^\d{8}-\d{3}$/.test(body.rollNo.trim())) {
+    return { valid: false, message: 'Roll number must be in format 21011519-085.' };
+  }
+  return { valid: true };
+}
+
+export async function registerStudent(req, res) {
+  try {
+    const validation = validateRegisterBody(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const { fullName, department, rollNo, cgpa, email, password, session } = req.body;
+    const sessionYear = session.trim();
+    const departmentTrimmed = department.trim();
+
+    const sessionDoc = await Session.findOne({
+      year: sessionYear,
+      department: departmentTrimmed,
+    });
+
+    if (!sessionDoc) {
+      return res.status(400).json({
+        message: `Session "${sessionYear}" not found for department ${departmentTrimmed}.`,
+      });
+    }
+
+    if (sessionDoc.status !== 'active') {
+      return res.status(400).json({
+        message: `Session "${sessionDoc.year}" not active yet.`,
+      });
+    }
+
+    const cgpaNum = Number(cgpa);
+    if (cgpaNum < sessionDoc.minCGPA) {
+      return res.status(400).json({
+        message: `Only students with CGPA from ${sessionDoc.minCGPA} to 4 can register to the system.`,
+      });
+    }
+
+    const existingEmail = await Student.findOne({ email: email.trim().toLowerCase() }).select('_id');
+    if (existingEmail) {
+      return res.status(409).json({ message: 'An account with this email already exists.' });
+    }
+
+    const existingRollNo = await Student.findOne({ rollNo: rollNo }).select('_id');
+    if (existingRollNo) {
+      return res.status(409).json({ message: 'An account with this roll number already exists.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const student = await Student.create({
+      fullName: fullName.trim(),
+      department: departmentTrimmed,
+      email: email.trim().toLowerCase(),
+      password: hashedPassword,
+      rollNo: rollNo.trim(),
+      session: sessionYear,
+      session_id: sessionDoc._id,
+      cgpa: cgpaNum,
+    });
+
+ 
+
+    return res.status(201).json({
+      message: 'Account created successfully.',
+    
+    });
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        message: messages.length ? messages[0] : 'Validation failed.',
+        errors: messages,
+      });
+    }
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || 'field';
+      return res.status(409).json({
+        message: `A student with this ${field} already exists.`,
+      });
+    }
+    console.error('registerStudent error:', err);
+    return res.status(500).json({
+      message: err.message || 'Registration failed. Please try again.',
+    });
+  }
+}
