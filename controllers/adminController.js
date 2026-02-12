@@ -1,8 +1,12 @@
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { Admin } from '../models/Admin.js';
 import { Session } from '../models/Session.js';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const TOKEN_EXPIRY = '7d';
 const SALT_ROUNDS = 10;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Validate required admin registration fields.
@@ -78,14 +82,72 @@ export async function registerAdmin(req, res) {
       });
     }
     if (err.code === 11000) {
-      const field = Object.keys(err.keyPattern || {})[0] || 'field';
       return res.status(409).json({
-        message: `An admin with this ${field} already exists.`,
+        message: 'An account with this email already exists.',
       });
     }
     console.error('registerAdmin error:', err);
     return res.status(500).json({
       message: err.message || 'Registration failed. Please try again.',
+    });
+  }
+}
+
+/**
+ * Validate required admin login fields.
+ * Returns { valid: false, message } or { valid: true }.
+ */
+function validateLoginBody(body) {
+  if (body.email == null || (typeof body.email === 'string' && body.email.trim() === '')) {
+    return { valid: false, message: 'Email is required.' };
+  }
+  if (body.password == null || (typeof body.password === 'string' && body.password.trim() === '')) {
+    return { valid: false, message: 'Password is required.' };
+  }
+  if (typeof body.email !== 'string' || !EMAIL_REGEX.test(body.email.trim())) {
+    return { valid: false, message: 'Please enter a valid email address.' };
+  }
+  return { valid: true };
+}
+
+export async function loginAdmin(req, res) {
+  try {
+    const validation = validateLoginBody(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const { email, password } = req.body;
+    const emailTrimmed = email.trim().toLowerCase();
+
+    const admin = await Admin.findOne({ email: emailTrimmed }).select('+password');
+    if (!admin) {
+      return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    const adminObj = admin.toObject ? admin.toObject() : admin;
+    delete adminObj.password;
+
+    const token = jwt.sign(
+      { userId: admin._id, role: 'Admin' },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
+    return res.status(200).json({
+      message: 'Logged in successfully.',
+      token,
+      admin: adminObj,
+    });
+  } catch (err) {
+    console.error('loginAdmin error:', err);
+    return res.status(500).json({
+      message: err.message || 'Login failed. Please try again.',
     });
   }
 }
