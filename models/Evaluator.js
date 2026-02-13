@@ -32,6 +32,11 @@ const evaluatorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    session_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Session',
+      default: null,
+    },
   },
   { timestamps: true }
 );
