@@ -120,7 +120,7 @@ export async function loginEvaluator(req, res) {
     const { email, password } = req.body;
     const emailTrimmed = email.trim().toLowerCase();
 
-    const evaluator = await Evaluator.findOne({ email: emailTrimmed }).select('+password');
+    const evaluator = await Evaluator.findOne({ email: emailTrimmed }).select('+password').populate('session_id', 'year');
     if (!evaluator) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
@@ -132,6 +132,7 @@ export async function loginEvaluator(req, res) {
 
     const evaluatorObj = evaluator.toObject ? evaluator.toObject() : evaluator;
     delete evaluatorObj.password;
+    evaluatorObj.sessionYear = evaluator.session_id?.year ?? null;
 
     const token = jwt.sign(
       { userId: evaluator._id, role: 'Evaluator' },
