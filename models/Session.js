@@ -13,7 +13,7 @@ const sessionSchema = new mongoose.Schema(
     numEvaluation: { type: Number, required: true, min: 0 },
     d1Weightage: { type: Number, required: true, min: 0, max: 100 },
     d2Weightage: { type: Number, required: true, min: 0, max: 100 },
-    status: { type: String, required: true, enum: ['draft', 'active', 'completed'], default: 'draft' },
+    status: { type: String, required: true, enum: ['draft', 'active', 'inactive'], default: 'inactive' },
   },
   { timestamps: true }
 );

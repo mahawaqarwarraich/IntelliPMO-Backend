@@ -256,3 +256,100 @@ export async function saveSession(req, res) {
     });
   }
 }
+
+const UPDATE_SESSION_STATUSES = ['draft', 'active', 'inactive'];
+
+function validateUpdateSessionBody(body) {
+  const required = ['sessionYear', 'department', 'status'];
+  for (const field of required) {
+    if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
+      return { valid: false, message: `Missing or empty field: ${field}.` };
+    }
+  }
+  const sessionYear = typeof body.sessionYear === 'string' ? body.sessionYear.trim() : String(body.sessionYear);
+  if (!SESSION_YEAR_REGEX.test(sessionYear)) {
+    return { valid: false, message: 'Session year must be in format YYYY-YYYY (e.g. 2021-2025).' };
+  }
+  if (!UPDATE_SESSION_STATUSES.includes(body.status)) {
+    return { valid: false, message: 'Invalid status. Must be draft, active, or inactive.' };
+  }
+  return {
+    valid: true,
+    data: {
+      year: sessionYear,
+      department: body.department,
+      status: body.status,
+    },
+  };
+}
+
+/**
+ * POST /api/admins/update-session (protected by auth).
+ * If status is active: check session stats; if activeSessions is 1 return error; if 0 increment by 1.
+ * Then find session by year+department and update its status.
+ */
+export async function updateSession(req, res) {
+  try {
+    const validation = validateUpdateSessionBody(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const { year, department, status } = validation.data;
+
+    if (status === 'active') {
+      const sessionStat = await SessionStat.findOne({ department });
+      const activeCount = sessionStat ? sessionStat.activeSessions : 0;
+
+      if (activeCount === 1) {
+        return res.status(400).json({
+          message: `One session is already active for the ${department} department. You cannot activate two at the same time.`,
+        });
+      }
+
+      if (activeCount === 0) {
+        await SessionStat.findOneAndUpdate(
+          { department },
+          { $inc: { activeSessions: 1 } },
+          { upsert: true, new: true }
+        );
+      }
+    }
+
+    const sessionDoc = await Session.findOne({ year, department });
+    if (!sessionDoc) {
+      return res.status(404).json({
+        message: `Session "${year}" not found for department ${department}.`,
+      });
+    }
+
+    const wasActive = sessionDoc.status === 'active';
+    sessionDoc.status = status;
+    await sessionDoc.save();
+
+    if (wasActive && status !== 'active') {
+      await SessionStat.findOneAndUpdate(
+        { department },
+        { $inc: { activeSessions: -1 } },
+        { new: true }
+      );
+    }
+
+    return res.status(200).json({
+      message: 'Session status updated successfully.',
+      session: sessionDoc,
+    });
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map((e) => e.message);
+      return res.status(400).json({
+        message: messages.length ? messages[0] : 'Validation failed.',
+        errors: messages,
+      });
+    }
+    console.error('updateSession error:', err);
+    return res.status(500).json({
+      message: err.message || 'Failed to update session status. Please try again.',
+    });
+  }
+}
