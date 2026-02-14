@@ -5,4 +5,4 @@ export { Admin } from './Admin.js';
 export { Student } from './Student.js';
 export { Supervisor } from './Supervisor.js';
 export { Evaluator } from './Evaluator.js';
-export { SessionState } from './SessionState.js';
+export { SessionState } from './SessionStat.js';
