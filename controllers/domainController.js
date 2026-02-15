@@ -81,3 +81,23 @@ export async function updateDomain(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to update domain.' });
   }
 }
+
+/**
+ * DELETE /api/domains/:id - Delete domain (auth required).
+ */
+export async function deleteDomain(req, res) {
+  try {
+    const id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid domain id.' });
+    }
+    const domain = await Domain.findByIdAndDelete(id);
+    if (!domain) {
+      return res.status(404).json({ message: 'Domain not found.' });
+    }
+    return res.status(200).json({ message: 'Domain deleted successfully.' });
+  } catch (err) {
+    console.error('deleteDomain error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to delete domain.' });
+  }
+}
