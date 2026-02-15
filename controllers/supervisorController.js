@@ -15,7 +15,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'department', 'email', 'password', 'session', 'designation', 'domain_id'];
+  const required = ['fullName', 'email', 'password', 'session', 'designation', 'domain_id'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -40,23 +40,19 @@ export async function registerSupervisor(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, department, email, password, session, designation, domain_id } = req.body;
+    const { fullName, email, password, session, designation, domain_id } = req.body;
     const sessionYear = session.trim();
-    const departmentTrimmed = department.trim();
 
     const domainDoc = await Domain.findById(domain_id).select('_id');
     if (!domainDoc) {
       return res.status(400).json({ message: 'Selected domain is not valid.' });
     }
 
-    const sessionDoc = await Session.findOne({
-      year: sessionYear,
-      department: departmentTrimmed,
-    });
+    const sessionDoc = await Session.findOne({ year: sessionYear });
 
     if (!sessionDoc) {
       return res.status(400).json({
-        message: `Session "${sessionYear}" not found for department ${departmentTrimmed}.`,
+        message: `Session "${sessionYear}" not found.`,
       });
     }
 
@@ -69,7 +65,6 @@ export async function registerSupervisor(req, res) {
 
     const supervisor = await Supervisor.create({
       fullName: fullName.trim(),
-      department: departmentTrimmed,
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),

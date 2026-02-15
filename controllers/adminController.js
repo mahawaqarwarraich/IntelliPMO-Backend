@@ -14,7 +14,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'department', 'email', 'password', 'session', 'designation'];
+  const required = ['fullName', 'email', 'password', 'session', 'designation'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -36,18 +36,14 @@ export async function registerAdmin(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, department, email, password, session, designation } = req.body;
+    const { fullName, email, password, session, designation } = req.body;
     const sessionYear = session.trim();
-    const departmentTrimmed = department.trim();
 
-    const sessionDoc = await Session.findOne({
-      year: sessionYear,
-      department: departmentTrimmed,
-    });
+    const sessionDoc = await Session.findOne({ year: sessionYear });
 
     if (!sessionDoc) {
       return res.status(400).json({
-        message: `Session "${sessionYear}" not found for department ${departmentTrimmed}.`,
+        message: `Session "${sessionYear}" not found.`,
       });
     }
 
@@ -60,7 +56,6 @@ export async function registerAdmin(req, res) {
 
     const admin = await Admin.create({
       fullName: fullName.trim(),
-      department: departmentTrimmed,
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),
@@ -157,7 +152,7 @@ export async function loginAdmin(req, res) {
 const SESSION_YEAR_REGEX = /^\d{4}-\d{4}$/;
 
 function validateSaveSessionBody(body) {
-  const required = ['sessionYear', 'department', 'status', 'minCGPA', 'minMembers', 'maxMembers', 'minGroups', 'maxGroups', 'numEvaluations', 'defense1Weightage', 'defense2Weightage'];
+  const required = ['sessionYear', 'status', 'minCGPA', 'minMembers', 'maxMembers', 'minGroups', 'maxGroups', 'numEvaluations', 'defense1Weightage', 'defense2Weightage'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -175,7 +170,6 @@ function validateSaveSessionBody(body) {
     valid: true,
     data: {
       year: sessionYear,
-      department: body.department,
       status: body.status,
       minCGPA: Number(body.minCGPA),
       minMembers: Number(body.minMembers),
@@ -192,7 +186,7 @@ function validateSaveSessionBody(body) {
 /**
  * POST /api/admins/save-session (protected by auth).
  * If status is active: check session stats; if activeSessions is 1 return error; if 0 increment by 1 and proceed.
- * Then upsert Session by year+department.
+ * Then upsert Session by year.
  */
 export async function saveSession(req, res) {
   try {
@@ -201,14 +195,12 @@ export async function saveSession(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { year, department, minCGPA, minMembers, maxMembers, minGroups, maxGroups, numEvaluation, d1Weightage, d2Weightage } = validation.data;
+    const { year, minCGPA, minMembers, maxMembers, minGroups, maxGroups, numEvaluation, d1Weightage, d2Weightage } = validation.data;
 
-
-    const existing = await Session.findOne({ year, department });
+    const existing = await Session.findOne({ year });
     let sessionDoc;
 
     if (existing) {
-      
       existing.minCGPA = minCGPA;
       existing.minMembers = minMembers;
       existing.maxMembers = maxMembers;
@@ -222,8 +214,6 @@ export async function saveSession(req, res) {
     } else {
       sessionDoc = await Session.create({
         year,
-        department,
-       
         minCGPA,
         minMembers,
         maxMembers,
@@ -248,7 +238,7 @@ export async function saveSession(req, res) {
       });
     }
     if (err.code === 11000) {
-      return res.status(409).json({ message: 'A session with this year and department already exists.' });
+      return res.status(409).json({ message: 'A session with this year already exists.' });
     }
     console.error('saveSession error:', err);
     return res.status(500).json({
@@ -260,7 +250,7 @@ export async function saveSession(req, res) {
 const UPDATE_SESSION_STATUSES = ['draft', 'active', 'inactive'];
 
 function validateUpdateSessionBody(body) {
-  const required = ['sessionYear', 'department', 'status'];
+  const required = ['sessionYear', 'status'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -277,7 +267,6 @@ function validateUpdateSessionBody(body) {
     valid: true,
     data: {
       year: sessionYear,
-      department: body.department,
       status: body.status,
     },
   };
@@ -286,7 +275,7 @@ function validateUpdateSessionBody(body) {
 /**
  * POST /api/admins/update-session (protected by auth).
  * If status is active: check session stats; if activeSessions is 1 return error; if 0 increment by 1.
- * Then find session by year+department and update its status.
+ * Then find session by year and update its status.
  */
 export async function updateSession(req, res) {
   try {
@@ -295,31 +284,31 @@ export async function updateSession(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { year, department, status } = validation.data;
+    const { year, status } = validation.data;
 
     if (status === 'active') {
-      const sessionStat = await SessionStat.findOne({ department });
+      const sessionStat = await SessionStat.findOne({ key: 'global' });
       const activeCount = sessionStat ? sessionStat.activeSessions : 0;
 
       if (activeCount === 1) {
         return res.status(400).json({
-          message: `One session is already active for the ${department} department. You cannot activate two at the same time.`,
+          message: 'One session is already active. You cannot activate two at the same time.',
         });
       }
 
       if (activeCount === 0) {
         await SessionStat.findOneAndUpdate(
-          { department },
+          { key: 'global' },
           { $inc: { activeSessions: 1 } },
           { upsert: true, new: true }
         );
       }
     }
 
-    const sessionDoc = await Session.findOne({ year, department });
+    const sessionDoc = await Session.findOne({ year });
     if (!sessionDoc) {
       return res.status(404).json({
-        message: `Session "${year}" not found for department ${department}.`,
+        message: `Session "${year}" not found.`,
       });
     }
 
@@ -329,7 +318,7 @@ export async function updateSession(req, res) {
 
     if (wasActive && status !== 'active') {
       await SessionStat.findOneAndUpdate(
-        { department },
+        { key: 'global' },
         { $inc: { activeSessions: -1 } },
         { new: true }
       );

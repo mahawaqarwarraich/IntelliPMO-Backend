@@ -3,17 +3,16 @@ import { Session } from '../models/Session.js';
 const SESSION_YEAR_REGEX = /^\d{4}-\d{4}$/;
 
 /**
- * GET /api/session-policy?department=CS&year=2021-2025
- * Protected by auth. Returns the session document for the given department and year.
+ * GET /api/session-policy?year=2021-2025
+ * Protected by auth. Returns the session document for the given year.
  */
 export async function getSessionPolicy(req, res) {
   try {
-    const department = req.query.department?.trim();
     const year = req.query.year?.trim();
 
-    if (!department || !year) {
+    if (!year) {
       return res.status(400).json({
-        message: 'Query parameters department and year are required.',
+        message: 'Query parameter year is required.',
       });
     }
 
@@ -23,10 +22,10 @@ export async function getSessionPolicy(req, res) {
       });
     }
 
-    const session = await Session.findOne({ department, year });
+    const session = await Session.findOne({ year });
     if (!session) {
       return res.status(404).json({
-        message: `No session found for department ${department} and year ${year}.`,
+        message: `No session found for year ${year}.`,
       });
     }
 

@@ -13,7 +13,7 @@ const SALT_ROUNDS = 10;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'department', 'rollNo', 'cgpa', 'email', 'password', 'session'];
+  const required = ['fullName', 'rollNo', 'cgpa', 'email', 'password', 'session'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -39,18 +39,14 @@ export async function registerStudent(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, department, rollNo, cgpa, email, password, session } = req.body;
+    const { fullName, rollNo, cgpa, email, password, session } = req.body;
     const sessionYear = session.trim();
-    const departmentTrimmed = department.trim();
 
-    const sessionDoc = await Session.findOne({
-      year: sessionYear,
-      department: departmentTrimmed,
-    });
+    const sessionDoc = await Session.findOne({ year: sessionYear });
 
     if (!sessionDoc) {
       return res.status(400).json({
-        message: `Session "${sessionYear}" not found for department ${departmentTrimmed}.`,
+        message: `Session "${sessionYear}" not found.`,
       });
     }
 
@@ -81,7 +77,6 @@ export async function registerStudent(req, res) {
 
     const student = await Student.create({
       fullName: fullName.trim(),
-      department: departmentTrimmed,
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       rollNo: rollNo.trim(),

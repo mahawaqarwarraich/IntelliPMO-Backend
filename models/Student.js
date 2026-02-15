@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { DEPARTMENTS } from './constants.js';
 
 const studentSchema = new mongoose.Schema(
   {
@@ -9,11 +8,6 @@ const studentSchema = new mongoose.Schema(
       trim: true,
       minlength: 2,
       maxlength: 100,
-    },
-    department: {
-      type: String,
-      required: true,
-      enum: DEPARTMENTS,
     },
     email: {
       type: String,

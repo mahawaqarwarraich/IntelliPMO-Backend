@@ -1,10 +1,8 @@
 import mongoose from 'mongoose';
-import { DEPARTMENTS } from './constants.js';
 
 const sessionSchema = new mongoose.Schema(
   {
-    year: { type: String, required: true, match: /^\d{4}-\d{4}$/ },
-    department: { type: String, required: true, enum: DEPARTMENTS },
+    year: { type: String, required: true, match: /^\d{4}-\d{4}$/, unique: true },
     minMembers: { type: Number, required: true, min: 1 },
     maxMembers: { type: Number, required: true, min: 1 },
     minGroups: { type: Number, required: true, min: 0 },
@@ -17,8 +15,6 @@ const sessionSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-sessionSchema.index({ year: 1, department: 1 }, { unique: true });
 
 const Session = mongoose.model('Session', sessionSchema);
 export { Session };
