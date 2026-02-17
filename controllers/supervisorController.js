@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Supervisor } from '../models/Supervisor.js';
-import { Session } from '../models/Session.js';
 import { Domain } from '../models/Domain.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -15,14 +14,14 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'email', 'password', 'session', 'designation', 'domain_id'];
+  const required = ['fullName', 'email', 'password', 'session_id', 'designation', 'domain_id'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
     }
   }
-  if (typeof body.session !== 'string' || !/^\d{4}-\d{4}$/.test(body.session.trim())) {
-    return { valid: false, message: 'Session must be in format YYYY-YYYY (e.g. 2021-2025).' };
+  if (!mongoose.Types.ObjectId.isValid(body.session_id)) {
+    return { valid: false, message: 'Please select a valid session.' };
   }
   if (typeof body.designation !== 'string' || body.designation.trim().length < 2) {
     return { valid: false, message: 'Designation must be at least 2 characters.' };
@@ -40,25 +39,19 @@ export async function registerSupervisor(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, email, password, session, designation, domain_id } = req.body;
-    const sessionYear = session.trim();
+    const { fullName, email, password, session_id, designation, domain_id } = req.body;
 
     const domainDoc = await Domain.findById(domain_id).select('_id');
     if (!domainDoc) {
       return res.status(400).json({ message: 'Selected domain is not valid.' });
     }
 
-    const sessionDoc = await Session.findOne({ year: sessionYear });
-
-    if (!sessionDoc) {
-      return res.status(400).json({
-        message: `Session "${sessionYear}" not found.`,
-      });
-    }
-
-    const existingEmail = await Supervisor.findOne({ email: email.trim().toLowerCase() }).select('_id');
-    if (existingEmail) {
-      return res.status(409).json({ message: 'An account with this email already exists.' });
+    const existing = await Supervisor.findOne({
+      email: email.trim().toLowerCase(),
+      session_id,
+    }).select('_id');
+    if (existing) {
+      return res.status(409).json({ message: 'You are already registered for this session.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -68,7 +61,7 @@ export async function registerSupervisor(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),
-      session_id: sessionDoc._id,
+      session_id: session_id,
       domain_id: domainDoc._id,
     });
 
@@ -89,7 +82,7 @@ export async function registerSupervisor(req, res) {
     }
     if (err.code === 11000) {
       return res.status(409).json({
-        message: 'An account with this email already exists.',
+        message: 'You are already registered for this session.',
       });
     }
     console.error('registerSupervisor error:', err);

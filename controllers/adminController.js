@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Admin } from '../models/Admin.js';
@@ -14,14 +15,14 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'email', 'password', 'session', 'designation'];
+  const required = ['fullName', 'email', 'password', 'session_id', 'designation'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
     }
   }
-  if (typeof body.session !== 'string' || !/^\d{4}-\d{4}$/.test(body.session.trim())) {
-    return { valid: false, message: 'Session must be in format YYYY-YYYY (e.g. 2021-2025).' };
+  if (!mongoose.Types.ObjectId.isValid(body.session_id)) {
+    return { valid: false, message: 'Please select a valid session.' };
   }
   if (typeof body.designation !== 'string' || body.designation.trim().length < 2) {
     return { valid: false, message: 'Designation must be at least 2 characters.' };
@@ -36,20 +37,14 @@ export async function registerAdmin(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, email, password, session, designation } = req.body;
-    const sessionYear = session.trim();
+    const { fullName, email, password, session_id, designation } = req.body;
 
-    const sessionDoc = await Session.findOne({ year: sessionYear });
-
-    if (!sessionDoc) {
-      return res.status(400).json({
-        message: `Session "${sessionYear}" not found.`,
-      });
-    }
-
-    const existingEmail = await Admin.findOne({ email: email.trim().toLowerCase() }).select('_id');
-    if (existingEmail) {
-      return res.status(409).json({ message: 'An account with this email already exists.' });
+    const existing = await Admin.findOne({
+      email: email.trim().toLowerCase(),
+      session_id,
+    }).select('_id');
+    if (existing) {
+      return res.status(409).json({ message: 'You are already registered for this session.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -59,7 +54,7 @@ export async function registerAdmin(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),
-      session_id: sessionDoc._id,
+      session_id: session_id,
     });
 
     const adminObj = admin.toObject ? admin.toObject() : admin;
@@ -79,7 +74,7 @@ export async function registerAdmin(req, res) {
     }
     if (err.code === 11000) {
       return res.status(409).json({
-        message: 'An account with this email already exists.',
+        message: 'You are already registered for this session.',
       });
     }
     console.error('registerAdmin error:', err);

@@ -12,7 +12,6 @@ const supervisorSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -40,7 +39,7 @@ const supervisorSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-supervisorSchema.index({ email: 1 });
+supervisorSchema.index({ email: 1, session_id: 1 }, { unique: true });
 
 const Supervisor = mongoose.model('Supervisor', supervisorSchema);
 

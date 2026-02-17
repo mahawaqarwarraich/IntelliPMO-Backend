@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Student } from '../models/Student.js';
@@ -13,7 +14,7 @@ const SALT_ROUNDS = 10;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'rollNo', 'cgpa', 'email', 'password', 'session'];
+  const required = ['fullName', 'rollNo', 'cgpa', 'email', 'password', 'session_id'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -23,8 +24,8 @@ function validateRegisterBody(body) {
   if (Number.isNaN(cgpa) || cgpa < 0 || cgpa > 4) {
     return { valid: false, message: 'CGPA must be a number between 0 and 4.' };
   }
-  if (typeof body.session !== 'string' || !/^\d{4}-\d{4}$/.test(body.session.trim())) {
-    return { valid: false, message: 'Session must be in format YYYY-YYYY (e.g. 2021-2025).' };
+  if (!mongoose.Types.ObjectId.isValid(body.session_id)) {
+    return { valid: false, message: 'Please select a valid session.' };
   }
   if (typeof body.rollNo !== 'string' || !/^\d{8}-\d{3}$/.test(body.rollNo.trim())) {
     return { valid: false, message: 'Roll number must be in format 21011519-085.' };
@@ -39,25 +40,11 @@ export async function registerStudent(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, rollNo, cgpa, email, password, session } = req.body;
-    const sessionYear = session.trim();
-
-    const sessionDoc = await Session.findOne({ year: sessionYear });
-
-    if (!sessionDoc) {
-      return res.status(400).json({
-        message: `Session "${sessionYear}" not found.`,
-      });
-    }
-
-    if (sessionDoc.status !== 'active') {
-      return res.status(400).json({
-        message: `Session "${sessionDoc.year}" not active yet.`,
-      });
-    }
+    const { fullName, rollNo, cgpa, email, password, session_id } = req.body;
 
     const cgpaNum = Number(cgpa);
-    if (cgpaNum < sessionDoc.minCGPA) {
+    const sessionDoc = await Session.findById(session_id).select('minCGPA').lean();
+    if (sessionDoc != null && cgpaNum < sessionDoc.minCGPA) {
       return res.status(400).json({
         message: `Only students with CGPA from ${sessionDoc.minCGPA} to 4 can register to the system.`,
       });
@@ -80,8 +67,7 @@ export async function registerStudent(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       rollNo: rollNo.trim(),
-      session: sessionYear,
-      session_id: sessionDoc._id,
+      session_id: session_id,
       cgpa: cgpaNum,
     });
 
