@@ -10,10 +10,23 @@ export async function getSessions(req, res) {
     const { status } = req.query;
     const filter = status ? { status: status } : {};
     const sessions = await Session.find(filter).select('_id year').sort({ year: 1 }).lean();
-    console.log(sessions);
     return res.json({ sessions });
   } catch (err) {
     console.error('getSessions error:', err);
     return res.status(500).json({ message: err.message || 'Failed to fetch sessions.' });
+  }
+}
+
+/**
+ * GET /api/sessions/active
+ * Returns the full active session document or null if none is active.
+ */
+export async function getActiveSession(req, res) {
+  try {
+    const activeSession = await Session.findOne({ status: 'active' }).lean();
+    return res.json({ activeSession: activeSession || null });
+  } catch (err) {
+    console.error('getActiveSession error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch active session.' });
   }
 }
