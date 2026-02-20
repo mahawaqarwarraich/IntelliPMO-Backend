@@ -21,6 +21,7 @@ export async function getDomainsSupervisors(req, res) {
       .lean();
 
     const list = supervisors.map((s, index) => ({
+      _id: s._id,
       number: index + 1,
       domainName: s.domain_id?.name ?? '—',
       supervisorName: s.fullName ?? '—',

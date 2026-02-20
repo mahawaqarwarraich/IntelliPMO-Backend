@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Supervisor } from '../models/Supervisor.js';
 import { Domain } from '../models/Domain.js';
+import { Session } from '../models/Session.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
@@ -149,5 +150,67 @@ export async function loginSupervisor(req, res) {
     return res.status(500).json({
       message: err.message || 'Login failed. Please try again.',
     });
+  }
+}
+
+/**
+ * GET /api/supervisors (protected, admin only).
+ * Fetches supervisors that have an active session_id, with domain name.
+ * Returns { supervisors } with number, supervisorName, email, domainName, _id.
+ */
+export async function getAllSupervisors(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ supervisors: [] });
+    }
+
+    const supervisors = await Supervisor.find({ session_id: activeSession._id })
+      .populate('domain_id', 'name')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const list = supervisors.map((s, index) => ({
+      number: index + 1,
+      supervisorName: s.fullName ?? '—',
+      email: s.email ?? '—',
+      domainName: s.domain_id?.name ?? '—',
+      _id: s._id,
+    }));
+
+    return res.status(200).json({ supervisors: list });
+  } catch (err) {
+    console.error('getAllSupervisors error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to load supervisors.' });
+  }
+}
+
+/**
+ * DELETE /api/supervisors/:id (protected, admin only).
+ */
+export async function deleteSupervisor(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid supervisor ID.' });
+    }
+
+    const supervisor = await Supervisor.findByIdAndDelete(id);
+    if (!supervisor) {
+      return res.status(404).json({ message: 'Supervisor not found.' });
+    }
+
+    return res.status(200).json({ message: 'Supervisor deleted successfully.' });
+  } catch (err) {
+    console.error('deleteSupervisor error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to delete supervisor.' });
   }
 }

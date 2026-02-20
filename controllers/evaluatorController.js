@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Evaluator } from '../models/Evaluator.js';
+import { Session } from '../models/Session.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
@@ -139,5 +140,66 @@ export async function loginEvaluator(req, res) {
     return res.status(500).json({
       message: err.message || 'Login failed. Please try again.',
     });
+  }
+}
+
+/**
+ * GET /api/evaluators (protected, admin only).
+ * Fetches evaluators that have an active session_id.
+ * Returns { evaluators } with number, evaluatorName, email, _id.
+ */
+export async function getAllEvaluators(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ evaluators: [] });
+    }
+
+    const evaluators = await Evaluator.find({ session_id: activeSession._id })
+      .select('fullName email')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const list = evaluators.map((e, index) => ({
+      number: index + 1,
+      evaluatorName: e.fullName ?? '—',
+      email: e.email ?? '—',
+      _id: e._id,
+    }));
+
+    return res.status(200).json({ evaluators: list });
+  } catch (err) {
+    console.error('getAllEvaluators error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to load evaluators.' });
+  }
+}
+
+/**
+ * DELETE /api/evaluators/:id (protected, admin only).
+ */
+export async function deleteEvaluator(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid evaluator ID.' });
+    }
+
+    const evaluator = await Evaluator.findByIdAndDelete(id);
+    if (!evaluator) {
+      return res.status(404).json({ message: 'Evaluator not found.' });
+    }
+
+    return res.status(200).json({ message: 'Evaluator deleted successfully.' });
+  } catch (err) {
+    console.error('deleteEvaluator error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to delete evaluator.' });
   }
 }

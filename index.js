@@ -10,6 +10,7 @@ import evaluatorRoutes from './routes/evaluatorRoutes.js';
 import sessionPolicyRoutes from './routes/sessionPolicyRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
 import domainsSupervisorsRoutes from './routes/domainsSupervisorsRoutes.js';
+import groupRoutes from './routes/groupRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use('/api/domains', domainRoutes);
 app.use('/api/session-policy', sessionPolicyRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/domains-supervisors', domainsSupervisorsRoutes);
+app.use('/api/groups', groupRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'FYP Management System API' });
