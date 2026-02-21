@@ -124,7 +124,7 @@ export async function loginStudent(req, res) {
     const { rollNo, password } = req.body;
     const rollNoTrimmed = rollNo.trim();
 
-    const student = await Student.findOne({ rollNo: rollNoTrimmed }).select('+password').populate('session_id', 'year');
+    const student = await Student.findOne({ rollNo: rollNoTrimmed }).select('+password');
     if (!student) {
       return res.status(401).json({ message: 'Invalid roll number or password.' });
     }
@@ -136,7 +136,6 @@ export async function loginStudent(req, res) {
 
     const studentObj = student.toObject ? student.toObject() : student;
     delete studentObj.password;
-    studentObj.sessionYear = student.session_id?.year ?? null;
 
     const token = jwt.sign(
       { userId: student._id, role: 'Student' },

@@ -123,3 +123,46 @@ export async function createGroup(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to register group.' });
   }
 }
+
+/**
+ * GET /api/groups/:id (protected).
+ * :id is the student's user id. Finds that student's group_id, then returns the group
+ * with only ideaName, adminStatus, adminMessage, supervisorStatus, supervisorMessage.
+ */
+export async function getGroupByStudentId(req, res) {
+  try {
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid student id.' });
+    }
+    if (req.user?.userId && String(req.user.userId) !== String(id)) {
+      return res.status(403).json({ message: 'You can only view your own group status.' });
+    }
+
+    const student = await Student.findById(id).select('group_id').lean();
+    if (!student || !student.group_id) {
+      return res.status(404).json({ message: 'No group found for this student.' });
+    }
+
+    const group = await Group.findById(student.group_id)
+      .select('ideaName adminStatus adminMessage supervisorStatus supervisorMessage')
+      .lean();
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+
+    return res.status(200).json({
+      group: {
+        ideaName: group.ideaName,
+        adminStatus: group.adminStatus,
+        adminMessage: group.adminMessage ?? '',
+        supervisorStatus: group.supervisorStatus,
+        supervisorMessage: group.supervisorMessage ?? '',
+      },
+    });
+  } catch (err) {
+    console.error('getGroupByStudentId error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch group.' });
+  }
+}

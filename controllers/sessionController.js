@@ -30,3 +30,17 @@ export async function getActiveSession(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to fetch active session.' });
   }
 }
+
+/**
+ * GET /api/sessions/active-id
+ * Returns only the active session's _id (or null). For session match checks.
+ */
+export async function getActiveSessionId(req, res) {
+  try {
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    return res.json({ activeSessionId: activeSession?._id ?? null });
+  } catch (err) {
+    console.error('getActiveSessionId error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch active session id.' });
+  }
+}

@@ -120,7 +120,7 @@ export async function loginSupervisor(req, res) {
     const { email, password } = req.body;
     const emailTrimmed = email.trim().toLowerCase();
 
-    const supervisor = await Supervisor.findOne({ email: emailTrimmed }).select('+password').populate('session_id', 'year');
+    const supervisor = await Supervisor.findOne({ email: emailTrimmed }).select('+password');
     if (!supervisor) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
@@ -132,7 +132,6 @@ export async function loginSupervisor(req, res) {
 
     const supervisorObj = supervisor.toObject ? supervisor.toObject() : supervisor;
     delete supervisorObj.password;
-    supervisorObj.sessionYear = supervisor.session_id?.year ?? null;
 
     const token = jwt.sign(
       { userId: supervisor._id, role: 'Supervisor' },

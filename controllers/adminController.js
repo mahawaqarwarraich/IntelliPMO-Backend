@@ -111,7 +111,7 @@ export async function loginAdmin(req, res) {
     const { email, password } = req.body;
     const emailTrimmed = email.trim().toLowerCase();
 
-    const admin = await Admin.findOne({ email: emailTrimmed }).select('+password').populate('session_id', 'year');
+    const admin = await Admin.findOne({ email: emailTrimmed }).select('+password');
     if (!admin) {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
@@ -123,7 +123,6 @@ export async function loginAdmin(req, res) {
 
     const adminObj = admin.toObject ? admin.toObject() : admin;
     delete adminObj.password;
-    adminObj.sessionYear = admin.session_id?.year ?? null;
 
     const token = jwt.sign(
       { userId: admin._id, role: 'Admin' },
