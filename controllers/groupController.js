@@ -51,9 +51,15 @@ export async function createGroup(req, res) {
       return res.status(400).json({ message: 'Please select a valid supervisor.' });
     }
 
-    const supervisor = await Supervisor.findById(supervisor_id).select('session_id fullName').lean();
+    const supervisor = await Supervisor.findById(supervisor_id).select('session_id fullName groupsCount').lean();
     if (!supervisor || !supervisor.session_id?.equals(activeSession._id)) {
       return res.status(400).json({ message: 'Selected supervisor is not in the active session.' });
+    }
+
+    const maxGroups = activeSession.maxGroups ?? 0;
+    const supervisorGroupsCount = supervisor.groupsCount ?? 0;
+    if (supervisorGroupsCount >= maxGroups) {
+      return res.status(400).json({ message: 'Supervisor capacity reached. Please choose another supervisor.' });
     }
 
     const maxMembers = activeSession.maxMembers ?? 3;
@@ -87,6 +93,8 @@ export async function createGroup(req, res) {
     if (alreadyInGroup.length > 0) {
       return res.status(400).json({ message: 'One or more selected students are already in a group.' });
     }
+
+    
 
     const group = await Group.create({
       ideaName: nameTrimmed,

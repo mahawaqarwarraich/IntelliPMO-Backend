@@ -35,6 +35,11 @@ const supervisorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    groupsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   { timestamps: true }
 );

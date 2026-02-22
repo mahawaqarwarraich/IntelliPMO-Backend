@@ -159,9 +159,7 @@ export async function loginSupervisor(req, res) {
  */
 export async function getAllSupervisors(req, res) {
   try {
-    if (req.user?.role !== 'Admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
+   
 
     const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
     if (!activeSession) {
@@ -178,6 +176,7 @@ export async function getAllSupervisors(req, res) {
       supervisorName: s.fullName ?? '—',
       email: s.email ?? '—',
       domainName: s.domain_id?.name ?? '—',
+      groupsCount: s.groupsCount ?? 0,
       _id: s._id,
     }));
 
