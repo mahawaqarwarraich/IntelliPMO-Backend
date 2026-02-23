@@ -100,10 +100,7 @@ export async function createGroup(req, res) {
       ideaName: nameTrimmed,
       ideaDescription: descTrimmed,
       session_id: activeSession._id,
-      supervisor: {
-        id: supervisor_id,
-        name: supervisor.fullName ?? '',
-      },
+      supervisor_id,
       members: studentsInSession.map((s) => s._id),
     });
 
@@ -120,8 +117,8 @@ export async function createGroup(req, res) {
         ideaDescription: group.ideaDescription,
         session_id: group.session_id,
         supervisor: {
-          id: group.supervisor?.id,
-          name: group.supervisor?.name ?? '',
+          id: supervisor_id,
+          name: supervisor.fullName ?? '',
         },
         members: group.members,
       },
@@ -129,6 +126,46 @@ export async function createGroup(req, res) {
   } catch (err) {
     console.error('createGroup error:', err);
     return res.status(500).json({ message: err.message || 'Failed to register group.' });
+  }
+}
+
+/**
+ * GET /api/groups/status?status=0|1 (protected).
+ * Gets active session, then groups where session_id = active session and overallStatus
+ * matches status (0 = false, 1 = true). Returns all group fields; populates supervisor
+ * and sends supervisorName. Sorted by createdAt ascending (oldest first).
+ */
+export async function getGroupsByStatus(req, res) {
+  try {
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
+    const statusParam = req.query.status;
+    const overallStatus = statusParam === '1';
+
+    const groups = await Group.find({
+      session_id: activeSession._id,
+      overallStatus,
+    })
+      .populate('supervisor_id', 'fullName')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const list = groups.map((g) => {
+      const { supervisor_id: sup, ...rest } = g;
+      return {
+        ...rest,
+        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisorName: sup?.fullName ?? '',
+      };
+    });
+
+    return res.status(200).json({ groups: list });
+  } catch (err) {
+    console.error('getGroupsByStatus error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
   }
 }
 
@@ -172,5 +209,37 @@ export async function getGroupByStudentId(req, res) {
   } catch (err) {
     console.error('getGroupByStudentId error:', err);
     return res.status(500).json({ message: err.message || 'Failed to fetch group.' });
+  }
+}
+
+/**
+ * PATCH /api/groups/:id (protected, admin).
+ * Body: adminStatus (0|1), adminMessage (string). Updates group and sets overallStatus when admin responds.
+ */
+export async function updateGroupAdmin(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Only admin can update group approval.' });
+    }
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid group id.' });
+    }
+    const { adminStatus, adminMessage } = req.body;
+    const status = adminStatus === 1 || adminStatus === true;
+    const message = typeof adminMessage === 'string' ? adminMessage.trim() : '';
+
+    const group = await Group.findByIdAndUpdate(
+      id,
+      { $set: { adminStatus: status, adminMessage: message, overallStatus: status } },
+      { new: true }
+    ).lean();
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+    return res.status(200).json({ message: 'Saved.', group });
+  } catch (err) {
+    console.error('updateGroupAdmin error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to update group.' });
   }
 }
