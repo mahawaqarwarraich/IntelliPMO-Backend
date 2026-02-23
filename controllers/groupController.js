@@ -214,7 +214,7 @@ export async function getGroupByStudentId(req, res) {
 
 /**
  * PATCH /api/groups/:id (protected, admin).
- * Body: adminStatus (0|1), adminMessage (string). Updates group and sets overallStatus when admin responds.
+ * Body: adminStatus ('accepted'|'rejected'), adminMessage (string). Updates group and sets overallStatus.
  */
 export async function updateGroupAdmin(req, res) {
   try {
@@ -226,12 +226,13 @@ export async function updateGroupAdmin(req, res) {
       return res.status(400).json({ message: 'Invalid group id.' });
     }
     const { adminStatus, adminMessage } = req.body;
-    const status = adminStatus === 1 || adminStatus === true;
+    const accepted = adminStatus === 'accepted';
+    const statusValue = accepted ? 'accepted' : 'rejected';
     const message = typeof adminMessage === 'string' ? adminMessage.trim() : '';
 
     const group = await Group.findByIdAndUpdate(
       id,
-      { $set: { adminStatus: status, adminMessage: message, overallStatus: status } },
+      { $set: { adminStatus: statusValue, adminMessage: message, overallStatus: accepted } },
       { new: true }
     ).lean();
     if (!group) {
