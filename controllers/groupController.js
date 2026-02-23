@@ -211,36 +211,3 @@ export async function getGroupByStudentId(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to fetch group.' });
   }
 }
-
-/**
- * PATCH /api/groups/:id (protected, admin).
- * Body: adminStatus ('accepted'|'rejected'), adminMessage (string). Updates group and sets overallStatus.
- */
-export async function updateGroupAdmin(req, res) {
-  try {
-    if (req.user?.role !== 'Admin') {
-      return res.status(403).json({ message: 'Only admin can update group approval.' });
-    }
-    const { id } = req.params;
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'Invalid group id.' });
-    }
-    const { adminStatus, adminMessage } = req.body;
-    const accepted = adminStatus === 'accepted';
-    const statusValue = accepted ? 'accepted' : 'rejected';
-    const message = typeof adminMessage === 'string' ? adminMessage.trim() : '';
-
-    const group = await Group.findByIdAndUpdate(
-      id,
-      { $set: { adminStatus: statusValue, adminMessage: message, overallStatus: accepted } },
-      { new: true }
-    ).lean();
-    if (!group) {
-      return res.status(404).json({ message: 'Group not found.' });
-    }
-    return res.status(200).json({ message: 'Saved.', group });
-  } catch (err) {
-    console.error('updateGroupAdmin error:', err);
-    return res.status(500).json({ message: err.message || 'Failed to update group.' });
-  }
-}
