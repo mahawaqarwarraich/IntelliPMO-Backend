@@ -142,12 +142,10 @@ export async function getGroupsByAdmin(req, res) {
       return res.status(400).json({ message: 'No active session.' });
     }
 
-    const statusParam = req.query.status;
-    const overallStatus = statusParam === '1';
-
+  
     const groups = await Group.find({
       session_id: activeSession._id,
-      overallStatus,
+      adminStatus: 'pending',
     })
       .populate('supervisor_id', 'fullName')
       .sort({ createdAt: 1 })
