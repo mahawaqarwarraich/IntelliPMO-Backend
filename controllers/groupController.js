@@ -135,7 +135,7 @@ export async function createGroup(req, res) {
  * matches status (0 = false, 1 = true). Returns all group fields; populates supervisor
  * and sends supervisorName. Sorted by createdAt ascending (oldest first).
  */
-export async function getGroupsByStatus(req, res) {
+export async function getGroupsByAdmin(req, res) {
   try {
     const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
     if (!activeSession) {
@@ -285,3 +285,8 @@ export async function updateGroupByAdmin(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to update group.' });
   }
 }
+
+
+
+export async function updateGroupBySupervisor(req, res) {}
+export async function getGroupsBySupervisor(req, res) {}
