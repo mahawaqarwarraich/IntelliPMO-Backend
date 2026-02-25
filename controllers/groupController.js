@@ -287,4 +287,42 @@ export async function updateGroupByAdmin(req, res) {
 
 
 export async function updateGroupBySupervisor(req, res) {}
-export async function getGroupsBySupervisor(req, res) {}
+
+/**
+ * GET /api/supervisor/groups (protected, supervisor).
+ * Returns groups where supervisor_id equals the logged-in supervisor's id and supervisorStatus is 'pending'.
+ * Same response shape as getGroupsByAdmin: all fields + supervisorName, sorted by createdAt ascending.
+ */
+export async function getGroupsBySupervisor(req, res) {
+  try {
+    if (req.user?.role !== 'Supervisor') {
+      return res.status(403).json({ message: 'Only supervisors can access this.' });
+    }
+    const supervisorId = req.user.userId;
+    if (!supervisorId || !mongoose.Types.ObjectId.isValid(supervisorId)) {
+      return res.status(400).json({ message: 'Invalid supervisor.' });
+    }
+
+    const groups = await Group.find({
+      supervisor_id: supervisorId,
+      supervisorStatus: 'pending',
+    })
+      .populate('supervisor_id', 'fullName')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const list = groups.map((g) => {
+      const { supervisor_id: sup, ...rest } = g;
+      return {
+        ...rest,
+        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisorName: sup?.fullName ?? '',
+      };
+    });
+
+    return res.status(200).json({ groups: list });
+  } catch (err) {
+    console.error('getGroupsBySupervisor error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
+  }
+}

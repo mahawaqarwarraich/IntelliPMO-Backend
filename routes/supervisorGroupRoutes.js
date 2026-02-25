@@ -4,9 +4,7 @@ import { getGroupsBySupervisor, updateGroupBySupervisor } from '../controllers/g
 
 const router = express.Router();
 
-
 router.get('/', authMiddleware, getGroupsBySupervisor);
 router.patch('/:id', authMiddleware, updateGroupBySupervisor);
-
 
 export default router;
