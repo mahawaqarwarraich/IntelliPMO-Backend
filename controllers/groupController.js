@@ -168,6 +168,42 @@ export async function getGroupsByAdmin(req, res) {
 }
 
 /**
+ * GET /api/groups/registered (protected).
+ * Gets active session, then groups where session_id = active session and overallStatus = true.
+ * Returns all group fields; populates supervisor and sends supervisorName. Sorted by createdAt ascending.
+ */
+export async function getAllRegisteredGroups(req, res) {
+  try {
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
+    const groups = await Group.find({
+      session_id: activeSession._id,
+      overallStatus: true,
+    })
+      .populate('supervisor_id', 'fullName')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const list = groups.map((g) => {
+      const { supervisor_id: sup, ...rest } = g;
+      return {
+        ...rest,
+        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisorName: sup?.fullName ?? '',
+      };
+    });
+
+    return res.status(200).json({ groups: list });
+  } catch (err) {
+    console.error('getAllRegisteredGroups error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
+  }
+}
+
+/**
  * GET /api/groups/:id (protected).
  * :id is the student's user id. Finds that student's group_id, then returns the group
  * with only ideaName, adminStatus, adminMessage, supervisorStatus, supervisorMessage.
