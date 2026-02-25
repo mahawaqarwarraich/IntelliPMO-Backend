@@ -370,7 +370,7 @@ export async function updateGroupBySupervisor(req, res) {
       }
       const maxGroups = activeSession.maxGroups ?? 0;
       const groupsCount = supervisor.groupsCount ?? 0;
-      if (groupsCount >= maxGroups) {
+      if (groupsCount > maxGroups) {
         return res.status(400).json({
           message: 'Supervisor capacity is reached. Please reject this request.',
         });
