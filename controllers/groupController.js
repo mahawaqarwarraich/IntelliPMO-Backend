@@ -286,7 +286,81 @@ export async function updateGroupByAdmin(req, res) {
 
 
 
-export async function updateGroupBySupervisor(req, res) {}
+/**
+ * PATCH /api/supervisor/groups/:id (protected, supervisor).
+ * Body: approval ('accepted'|'rejected'), message (string).
+ * Only the group's supervisor can update. If approval 'accepted' and admin already accepted,
+ * check capacity then set overallStatus true and increment supervisor groupsCount.
+ * If approval 'rejected': update supervisorStatus, supervisorMessage, overallStatus false.
+ */
+export async function updateGroupBySupervisor(req, res) {
+  try {
+    if (req.user?.role !== 'Supervisor') {
+      return res.status(403).json({ message: 'Only supervisor can update group approval.' });
+    }
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid group id.' });
+    }
+    const { approval, message } = req.body;
+    const supervisorMessage = typeof message === 'string' ? message.trim() : '';
+
+    if (approval !== 'accepted' && approval !== 'rejected') {
+      return res.status(400).json({ message: 'Approval must be "accepted" or "rejected".' });
+    }
+
+    const group = await Group.findById(id).select('session_id supervisor_id adminStatus supervisorStatus').lean();
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+    if (String(group.supervisor_id) !== String(req.user.userId)) {
+      return res.status(403).json({ message: 'You can only update groups assigned to you.' });
+    }
+
+    if (approval === 'accepted') {
+      if (group.adminStatus !== 'accepted') {
+        await Group.findByIdAndUpdate(id, {
+          $set: { supervisorStatus: 'accepted', supervisorMessage, overallStatus: false },
+        });
+        return res.status(200).json({ message: 'Saved.', group: await Group.findById(id).lean() });
+      }
+      const activeSession = await Session.findOne({ status: 'active' }).select('maxGroups').lean();
+      if (!activeSession) {
+        return res.status(400).json({ message: 'No active session.' });
+      }
+      const supervisor = await Supervisor.findById(group.supervisor_id).select('groupsCount').lean();
+      if (!supervisor) {
+        return res.status(400).json({ message: 'Supervisor not found.' });
+      }
+      const maxGroups = activeSession.maxGroups ?? 0;
+      const groupsCount = supervisor.groupsCount ?? 0;
+      if (groupsCount >= maxGroups) {
+        return res.status(400).json({
+          message: 'Supervisor capacity is reached. Please reject this request.',
+        });
+      }
+      await Group.findByIdAndUpdate(id, {
+        $set: { supervisorStatus: 'accepted', supervisorMessage, overallStatus: true },
+      });
+      await Supervisor.findByIdAndUpdate(group.supervisor_id, { $inc: { groupsCount: 1 } });
+      return res.status(200).json({
+        message: 'Saved.',
+        group: await Group.findById(id).lean(),
+      });
+    }
+
+    await Group.findByIdAndUpdate(id, {
+      $set: { supervisorStatus: 'rejected', supervisorMessage, overallStatus: false },
+    });
+    return res.status(200).json({
+      message: 'Saved.',
+      group: await Group.findById(id).lean(),
+    });
+  } catch (err) {
+    console.error('updateGroupBySupervisor error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to update group.' });
+  }
+}
 
 /**
  * GET /api/supervisor/groups (protected, supervisor).
