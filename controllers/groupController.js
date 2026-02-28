@@ -204,6 +204,74 @@ export async function getAllRegisteredGroups(req, res) {
 }
 
 /**
+ * GET /api/groups/details/:groupId (protected).
+ *
+ * Returns a single group's display info (name + member names + supervisor name) by group id.
+ * Used by the Group chat screen to show the header without re-fetching the full list.
+ *
+ * - Loads the group by _id (groupId). If not found or invalid id, returns 404/400.
+ * - Ensures the requester is allowed to see this group:
+ *   - If role is Student: requester's id must be in group.members.
+ *   - If role is Supervisor: group.supervisor_id must equal requester's id.
+ *   - Otherwise returns 403.
+ * - Populates members (Student refs) and supervisor_id (Supervisor ref) to get fullName.
+ * - Responds with { group: { ideaName, memberNames: string[], supervisorName } }.
+ */
+export async function getGroupDetailsById(req, res) {
+  try {
+    const { groupId } = req.params;
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group id.' });
+    }
+
+    const group = await Group.findById(groupId)
+      .populate('members', 'fullName')
+      .populate('supervisor_id', 'fullName')
+      .lean();
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+
+    if (role === 'Student') {
+      const memberIds = (group.members || []).map((m) => (m && m._id ? String(m._id) : ''));
+      if (!userId || !memberIds.includes(String(userId))) {
+        return res.status(403).json({ message: 'You do not have access to this group.' });
+      }
+    } else if (role === 'Supervisor') {
+      const supervisorId = group.supervisor_id?._id ?? group.supervisor_id;
+      if (!userId || String(supervisorId) !== String(userId)) {
+        return res.status(403).json({ message: 'You do not have access to this group.' });
+      }
+    } else {
+      return res.status(403).json({ message: 'Only students and supervisors can access group chat.' });
+    }
+
+    const memberNames = (group.members || [])
+      .map((m) => (m && typeof m.fullName === 'string' ? m.fullName : null))
+      .filter(Boolean);
+    const supervisorName =
+      (group.supervisor_id && typeof group.supervisor_id.fullName === 'string')
+        ? group.supervisor_id.fullName
+        : '';
+
+    return res.status(200).json({
+      group: {
+        ideaName: group.ideaName ?? '',
+        memberNames,
+        supervisorName,
+      },
+    });
+  } catch (err) {
+    console.error('getGroupDetailsById error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch group details.' });
+  }
+}
+
+/**
  * GET /api/groups/:id (protected).
  * :id is the student's user id. Finds that student's group_id, then returns the group
  * with only ideaName, adminStatus, adminMessage, supervisorStatus, supervisorMessage.
