@@ -7,19 +7,21 @@ import { Supervisor } from '../models/Supervisor.js';
 /**
  * GET /api/messages/:groupId (protected).
  *
- * Returns all messages for a group, sorted oldest to newest.
- * Used when the group chat page loads to display the conversation.
+ * Returns messages for a group, sorted oldest to newest.
+ * Query param: after (optional) — ISO timestamp; if present, only messages with createdAt > after are returned.
+ * Used on initial load (no after) and by polling (with after=lastMessageTimestamp) to get new messages.
  *
  * - Validates groupId from the URL. If invalid or missing, returns 400.
  * - Ensures the requester has access to the group: if Student, must be in group.members;
  *   if Supervisor, must be group.supervisor_id. Otherwise returns 403.
- * - Queries MongoDB: find all messages where groupId equals the given group id.
- * - Sorts by createdAt ascending (oldest first).
+ * - Queries MongoDB: find messages where groupId equals the given group id and, if after is provided,
+ *   createdAt is greater than the given timestamp. Sorts by createdAt ascending (oldest first).
  * - Returns 200 with { messages: [...] } (plain array of message documents).
  */
 export async function getMessagesByGroupId(req, res) {
   try {
     const { groupId } = req.params;
+    const { after } = req.query;
     const userId = req.user?.userId;
     const role = req.user?.role;
 
@@ -51,7 +53,15 @@ export async function getMessagesByGroupId(req, res) {
       }
     }
 
-    const messages = await Message.find({ groupId })
+    const filter = { groupId };
+    if (after) {
+      const afterDate = new Date(after);
+      if (!Number.isNaN(afterDate.getTime())) {
+        filter.createdAt = { $gt: afterDate };
+      }
+    }
+
+    const messages = await Message.find(filter)
       .sort({ createdAt: 1 })
       .lean();
 
