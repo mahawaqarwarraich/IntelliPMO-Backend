@@ -5,6 +5,64 @@ import { Student } from '../models/Student.js';
 import { Supervisor } from '../models/Supervisor.js';
 
 /**
+ * GET /api/messages/:groupId (protected).
+ *
+ * Returns all messages for a group, sorted oldest to newest.
+ * Used when the group chat page loads to display the conversation.
+ *
+ * - Validates groupId from the URL. If invalid or missing, returns 400.
+ * - Ensures the requester has access to the group: if Student, must be in group.members;
+ *   if Supervisor, must be group.supervisor_id. Otherwise returns 403.
+ * - Queries MongoDB: find all messages where groupId equals the given group id.
+ * - Sorts by createdAt ascending (oldest first).
+ * - Returns 200 with { messages: [...] } (plain array of message documents).
+ */
+export async function getMessagesByGroupId(req, res) {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group id.' });
+    }
+    if (role !== 'Student' && role !== 'Supervisor') {
+      return res.status(403).json({ message: 'Only students and supervisors can view group messages.' });
+    }
+
+    const group = await Group.findById(groupId)
+      .populate('members', '_id')
+      .select('supervisor_id members')
+      .lean();
+
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+
+    if (role === 'Student') {
+      const memberIds = (group.members || []).map((m) => (m && m._id ? String(m._id) : ''));
+      if (!userId || !memberIds.includes(String(userId))) {
+        return res.status(403).json({ message: 'You do not have access to this group.' });
+      }
+    } else {
+      const supervisorId = group.supervisor_id ? String(group.supervisor_id) : '';
+      if (!userId || supervisorId !== String(userId)) {
+        return res.status(403).json({ message: 'You do not have access to this group.' });
+      }
+    }
+
+    const messages = await Message.find({ groupId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    return res.status(200).json({ messages: messages || [] });
+  } catch (err) {
+    console.error('getMessagesByGroupId error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch messages.' });
+  }
+}
+
+/**
  * POST /api/messages (protected).
  *
  * Saves a text message to the database for a group chat.
