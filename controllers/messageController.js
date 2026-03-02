@@ -75,19 +75,20 @@ export async function getMessagesByGroupId(req, res) {
 /**
  * POST /api/messages (protected).
  *
- * Saves a text message to the database for a group chat.
- * Request body: { groupId, senderId, content }.
+ * Saves a text or file message to the database for a group chat.
+ * Request body: either { groupId, senderId, content } for text, or { groupId, senderId, filePath, fileName, fileType } for file.
+ * A message is valid if it has either content OR filePath (not both empty).
  *
- * - Validates groupId and content; senderId must match the authenticated user (req.user.userId).
+ * - Validates groupId; senderId must match the authenticated user (req.user.userId).
  * - Ensures the user is allowed to post in this group: if Student, must be in group.members;
  *   if Supervisor, must be group.supervisor_id. Otherwise returns 403.
  * - Resolves senderName from Student or Supervisor model by senderId.
- * - Creates a Message document with groupId, senderId, senderName, content (file fields left default).
- * - Returns 201 with the created message (including _id, createdAt).
+ * - Creates a Message document with groupId, senderId, senderName, and whichever of content / file fields are provided.
+ * - Returns 201 with the created message (including _id, createdAt). Message model stores file path as fileUrl.
  */
 export async function createMessage(req, res) {
   try {
-    const { groupId, senderId, content } = req.body;
+    const { groupId, senderId, content, filePath, fileName, fileType } = req.body;
     const userId = req.user?.userId;
     const role = req.user?.role;
 
@@ -102,8 +103,11 @@ export async function createMessage(req, res) {
     }
 
     const contentStr = typeof content === 'string' ? content.trim() : '';
-    if (!contentStr) {
-      return res.status(400).json({ message: 'Message content is required.' });
+    const filePathStr = typeof filePath === 'string' ? filePath.trim() : '';
+    const hasContent = contentStr.length > 0;
+    const hasFile = filePathStr.length > 0;
+    if (!hasContent && !hasFile) {
+      return res.status(400).json({ message: 'Message must have content or a file.' });
     }
 
     const group = await Group.findById(groupId)
@@ -141,6 +145,9 @@ export async function createMessage(req, res) {
       senderId: userId,
       senderName,
       content: contentStr,
+      fileUrl: filePathStr,
+      fileName: typeof fileName === 'string' ? fileName.trim() : '',
+      fileType: typeof fileType === 'string' ? fileType.trim() : '',
     });
 
     const created = message.toObject ? message.toObject() : message;
