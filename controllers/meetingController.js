@@ -51,7 +51,7 @@ export async function createMeeting(req, res) {
     const group = await Group.findOne({
       _id: group_id,
       supervisor_id: supervisorId,
-      supervisorStatus: 'accepted',
+      overallStatus: true,
     })
       .select('_id')
       .lean();
