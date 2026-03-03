@@ -161,3 +161,34 @@ export async function createMeeting(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to create meeting.' });
   }
 }
+
+/**
+ * DELETE /api/meetings/:id (protected, supervisor only).
+ * Deletes a meeting. The meeting's supervisor_id must match the authenticated user.
+ */
+export async function deleteMeeting(req, res) {
+  try {
+    if (req.user?.role !== 'Supervisor') {
+      return res.status(403).json({ message: 'Only supervisors can delete meetings.' });
+    }
+
+    const meetingId = req.params.id;
+    if (!meetingId || !mongoose.Types.ObjectId.isValid(meetingId)) {
+      return res.status(400).json({ message: 'Invalid meeting id.' });
+    }
+
+    const meeting = await Meeting.findById(meetingId).select('supervisor_id').lean();
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found.' });
+    }
+    if (String(meeting.supervisor_id) !== String(req.user.userId)) {
+      return res.status(403).json({ message: 'You can only delete your own meetings.' });
+    }
+
+    await Meeting.findByIdAndDelete(meetingId);
+    return res.status(200).json({ message: 'Meeting deleted.' });
+  } catch (err) {
+    console.error('deleteMeeting error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to delete meeting.' });
+  }
+}
