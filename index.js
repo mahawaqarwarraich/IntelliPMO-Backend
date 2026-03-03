@@ -16,6 +16,7 @@ import adminGroupRoutes from './routes/adminGroupRoutes.js';
 import supervisorGroupRoutes from './routes/supervisorGroupRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import meetingRoutes from './routes/meetingRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -41,6 +42,7 @@ app.use('/api/admin/groups', adminGroupRoutes);
 app.use('/api/supervisor/groups', supervisorGroupRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/meetings', meetingRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'FYP Management System API' });
