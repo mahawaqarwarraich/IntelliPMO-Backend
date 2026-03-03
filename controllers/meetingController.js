@@ -1,6 +1,90 @@
 import mongoose from 'mongoose';
 import { Meeting } from '../models/Meeting.js';
 import { Group } from '../models/Group.js';
+import { Student } from '../models/Student.js';
+import { Session } from '../models/Session.js';
+
+/**
+ * GET /api/meetings (protected, Supervisor or Student).
+ * Supervisor: returns all meetings they created (supervisor_id = current user), scoped to active session.
+ * Student: returns all meetings created by their supervisor (student's group -> group.supervisor_id -> meetings by that supervisor), scoped to active session.
+ * Each meeting includes group name (via populated group_id). Sorted by meetingDate ascending, then startingTime ascending.
+ */
+export async function getMeetings(req, res) {
+  try {
+    const role = req.user?.role;
+    const userId = req.user?.userId;
+
+    if (role !== 'Supervisor' && role !== 'Student') {
+      return res.status(403).json({ message: 'Only supervisors and students can view meetings.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ meetings: [] });
+    }
+
+    let supervisorId = null;
+
+    if (role === 'Supervisor') {
+      supervisorId = userId;
+    } else {
+      const student = await Student.findById(userId).select('group_id').lean();
+      if (!student?.group_id) {
+        return res.status(200).json({ meetings: [] });
+      }
+      const group = await Group.findOne({
+        _id: student.group_id,
+        session_id: activeSession._id,
+      })
+        .select('supervisor_id')
+        .lean();
+      if (!group?.supervisor_id) {
+        return res.status(200).json({ meetings: [] });
+      }
+      supervisorId = group.supervisor_id;
+    }
+
+    const groupIdsInSession = await Group.find({
+      session_id: activeSession._id,
+      supervisor_id: supervisorId,
+    })
+      .select('_id')
+      .lean();
+    const ids = (groupIdsInSession || []).map((g) => g._id);
+    if (ids.length === 0) {
+      return res.status(200).json({ meetings: [] });
+    }
+
+    const meetings = await Meeting.find({ group_id: { $in: ids } })
+      .populate('group_id', 'ideaName')
+      .sort({ meetingDate: 1, startingTime: 1 })
+      .lean();
+
+    const list = (meetings || []).map((m) => {
+      const group = m.group_id;
+      const groupName = group?.ideaName ?? '';
+      const groupId = group?._id ?? m.group_id;
+      return {
+        _id: m._id,
+        supervisor_id: m.supervisor_id,
+        group_id: groupId,
+        groupName,
+        meetingTitle: m.meetingTitle,
+        meetingDate: m.meetingDate,
+        meetingLocation: m.meetingLocation,
+        startingTime: m.startingTime,
+        endingTime: m.endingTime,
+        createdAt: m.createdAt,
+      };
+    });
+
+    return res.status(200).json({ meetings: list });
+  } catch (err) {
+    console.error('getMeetings error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch meetings.' });
+  }
+}
 
 /**
  * POST /api/meetings (protected, supervisor only).
