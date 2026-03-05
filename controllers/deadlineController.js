@@ -54,3 +54,41 @@ export async function createDeadline(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to create deadline.' });
   }
 }
+
+/**
+ * GET /api/deadlines (protected, Admin or Student).
+ * Returns all deadlines for the active session (or [] if no active session).
+ * Used by the AllDeadlines component to display deadline cards.
+ */
+export async function getDeadlines(req, res) {
+  try {
+    const role = req.user?.role;
+    if (role !== 'Admin' && role !== 'Student') {
+      return res.status(403).json({ message: 'Only admins and students can view deadlines.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ deadlines: [] });
+    }
+
+    const list = await Deadline.find({ session_id: activeSession._id })
+      .sort({ dueDate: 1, dueTime: 1 })
+      .lean();
+
+    const deadlines = (list || []).map((d) => ({
+      _id: d._id,
+      deadlineName: d.deadlineName,
+      dueDate: d.dueDate,
+      dueTime: d.dueTime,
+      session_id: d.session_id,
+      description: d.description,
+      createdAt: d.createdAt,
+    }));
+
+    return res.json({ deadlines });
+  } catch (err) {
+    console.error('getDeadlines error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch deadlines.' });
+  }
+}
