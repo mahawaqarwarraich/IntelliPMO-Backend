@@ -26,6 +26,7 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: ['on time', 'late'],
+      default: 'on time',
     },
     submittedAt: {
       type: Date,
