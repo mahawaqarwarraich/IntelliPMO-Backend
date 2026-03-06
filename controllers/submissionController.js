@@ -1,5 +1,7 @@
 import { Submission } from '../models/Submission.js';
 import { Deadline } from '../models/Deadline.js';
+import { Session } from '../models/Session.js';
+import { Student } from '../models/Student.js';
 
 /**
  * POST /api/submissions (protected, Student only).
@@ -63,5 +65,54 @@ export async function createSubmission(req, res) {
   } catch (err) {
     console.error('createSubmission error:', err);
     return res.status(500).json({ message: err.message || 'Failed to create submission.' });
+  }
+}
+
+/**
+ * GET /api/submissions (protected, Admin only).
+ * Returns all submissions for deadlines that belong to the active session.
+ * Each row includes deadline name, student rollNo, file info and status.
+ */
+export async function getSubmissions(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Only admins can view submissions.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ submissions: [] });
+    }
+
+    const deadlines = await Deadline.find({ session_id: activeSession._id }).select('_id').lean();
+    const deadlineIds = (deadlines || []).map((d) => d._id);
+    if (deadlineIds.length === 0) {
+      return res.status(200).json({ submissions: [] });
+    }
+
+    const list = await Submission.find({ deadline_id: { $in: deadlineIds } })
+      .populate('deadline_id', 'deadlineName')
+      .populate('student_id', 'rollNo')
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    const submissions = (list || []).map((s) => {
+      const deadline = s.deadline_id;
+      const student = s.student_id;
+      return {
+        _id: s._id,
+        deadlineName: deadline?.deadlineName ?? '',
+        fileUrl: s.fileUrl,
+        fileName: s.fileName,
+        status: s.status,
+        rollNo: student?.rollNo ?? '',
+        submittedAt: s.submittedAt,
+      };
+    });
+
+    return res.json({ submissions });
+  } catch (err) {
+    console.error('getSubmissions error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch submissions.' });
   }
 }
