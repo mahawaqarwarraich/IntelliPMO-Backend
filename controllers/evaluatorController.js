@@ -14,7 +14,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'email', 'password', 'session_id', 'designation'];
+  const required = ['fullName', 'email', 'password', 'session_id', 'designation', 'defenseType'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -26,6 +26,9 @@ function validateRegisterBody(body) {
   if (typeof body.designation !== 'string' || body.designation.trim().length < 2) {
     return { valid: false, message: 'Designation must be at least 2 characters.' };
   }
+  if (!['d1', 'd2'].includes(body.defenseType)) {
+    return { valid: false, message: 'Defense type must be D1 or D2.' };
+  }
   return { valid: true };
 }
 
@@ -36,7 +39,7 @@ export async function registerEvaluator(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, email, password, session_id, designation } = req.body;
+    const { fullName, email, password, session_id, designation, defenseType } = req.body;
 
     const existing = await Evaluator.findOne({
       email: email.trim().toLowerCase(),
@@ -53,6 +56,7 @@ export async function registerEvaluator(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),
+      defenseType: defenseType.trim().toLowerCase(),
       session_id: session_id,
     });
 
@@ -159,7 +163,7 @@ export async function getAllEvaluators(req, res) {
     }
 
     const evaluators = await Evaluator.find({ session_id: activeSession._id })
-      .select('fullName email')
+      .select('fullName email defenseType')
       .sort({ fullName: 1 })
       .lean();
 
@@ -167,6 +171,7 @@ export async function getAllEvaluators(req, res) {
       number: index + 1,
       evaluatorName: e.fullName ?? '—',
       email: e.email ?? '—',
+      defenseType: e.defenseType ?? '—',
       _id: e._id,
     }));
 
