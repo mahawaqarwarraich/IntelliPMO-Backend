@@ -157,12 +157,19 @@ export async function getAllEvaluators(req, res) {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
 
+    const { defenseType } = req.query;
+
     const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
     if (!activeSession) {
       return res.status(200).json({ evaluators: [] });
     }
 
-    const evaluators = await Evaluator.find({ session_id: activeSession._id })
+    const filter = { session_id: activeSession._id };
+    if (defenseType && ['d1', 'd2'].includes(String(defenseType).toLowerCase())) {
+      filter.defenseType = String(defenseType).toLowerCase();
+    }
+
+    const evaluators = await Evaluator.find(filter)
       .select('fullName email defenseType')
       .sort({ fullName: 1 })
       .lean();
