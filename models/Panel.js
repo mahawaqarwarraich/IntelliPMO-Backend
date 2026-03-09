@@ -14,6 +14,11 @@ const panelSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    defenseType: {
+      type: String,
+      required: true,
+      enum: ['d1', 'd2'],
+    },
     session_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Session',

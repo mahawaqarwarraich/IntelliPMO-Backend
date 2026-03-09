@@ -4,15 +4,22 @@ import { Session } from '../models/Session.js';
 import { Evaluator } from '../models/Evaluator.js';
 
 /**
- * POST /api/panels/d1 (protected, Admin only).
- * Creates a panel for the active session and ensures selected evaluators are D1 evaluators of the active session.
+ * POST /api/panels/:defenseType (protected, Admin only).
+ * :defenseType from URL (e.g. /api/panels/d1) must be d1 or d2.
+ * Creates a panel for the active session; selected evaluators must match that defense type.
  * Body: { panelName, members: [evaluatorId, ...] }
  */
-export async function createPanelD1(req, res) {
+export async function createPanel(req, res) {
   try {
     if (req.user?.role !== 'Admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
+
+    const rawType = (req.params?.defenseType || '').toLowerCase();
+    if (rawType !== 'd1' && rawType !== 'd2') {
+      return res.status(400).json({ message: 'Invalid defense type. Use d1 or d2 in the URL (e.g. /api/panels/d1).' });
+    }
+    const defenseType = rawType;
 
     const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
     if (!activeSession) {
@@ -32,22 +39,23 @@ export async function createPanelD1(req, res) {
       return res.status(400).json({ message: 'Invalid evaluator IDs.' });
     }
 
-    // Ensure evaluators exist, are D1, and belong to the active session.
+    // Ensure evaluators exist, match the given defense type, and belong to the active session.
     const found = await Evaluator.find({
       _id: { $in: ids },
       session_id: activeSession._id,
-      defenseType: 'd1',
+      defenseType,
     })
       .select('_id')
       .lean();
 
     if ((found || []).length !== ids.length) {
-      return res.status(400).json({ message: 'One or more selected evaluators are not valid for D1 in the active session.' });
+      return res.status(400).json({ message: `One or more selected evaluators are not valid for ${defenseType.toUpperCase()} in the active session.` });
     }
 
     const panel = await Panel.create({
       panelName: panelName.trim(),
       members: ids,
+      defenseType,
       session_id: activeSession._id,
     });
 
@@ -57,6 +65,7 @@ export async function createPanelD1(req, res) {
         _id: panel._id,
         panelName: panel.panelName,
         members: panel.members,
+        defenseType: panel.defenseType,
         session_id: panel.session_id,
         createdAt: panel.createdAt,
       },
@@ -65,7 +74,7 @@ export async function createPanelD1(req, res) {
     if (err?.code === 11000) {
       return res.status(409).json({ message: 'A panel with this name already exists for the active session.' });
     }
-    console.error('createPanelD1 error:', err);
+    console.error('createPanel error:', err);
     return res.status(500).json({ message: err.message || 'Failed to create panel.' });
   }
 }
