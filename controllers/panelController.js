@@ -82,15 +82,12 @@ export async function createPanel(req, res) {
 }
 
 /**
- * GET /api/panels?defenseType=d1|d2 (protected, Admin only).
+ * GET /api/panels?defenseType=d1|d2 (protected).
  * Returns panels for the active session matching the given defense type.
+ * Populates members with evaluator fullName for display. All authenticated users may call this.
  */
 export async function getPanels(req, res) {
   try {
-    if (req.user?.role !== 'Admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
-
     const defenseType = (req.query?.defenseType || '').toLowerCase();
     if (defenseType !== 'd1' && defenseType !== 'd2') {
       return res.status(400).json({ message: 'Query defenseType is required and must be d1 or d2.' });
@@ -105,11 +102,20 @@ export async function getPanels(req, res) {
       session_id: activeSession._id,
       defenseType,
     })
-      .select('_id panelName defenseType assignedGroups')
+      .select('_id panelName defenseType assignedGroups members')
+      .populate('members', 'fullName')
       .sort({ panelName: 1 })
       .lean();
 
-    return res.status(200).json({ panels: panels || [] });
+    const list = (panels || []).map((p) => ({
+      _id: p._id,
+      panelName: p.panelName,
+      defenseType: p.defenseType,
+      assignedGroups: p.assignedGroups,
+      memberNames: (p.members || []).map((m) => (m && m.fullName ? m.fullName : '—')),
+    }));
+
+    return res.status(200).json({ panels: list });
   } catch (err) {
     console.error('getPanels error:', err);
     return res.status(500).json({ message: err.message || 'Failed to fetch panels.' });
