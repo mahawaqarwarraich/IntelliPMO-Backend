@@ -104,6 +104,7 @@ export async function getPanels(req, res) {
     })
       .select('_id panelName defenseType assignedGroups members')
       .populate('members', 'fullName')
+      .populate('assignedGroups', 'ideaName')
       .sort({ panelName: 1 })
       .lean();
 
@@ -112,6 +113,7 @@ export async function getPanels(req, res) {
       panelName: p.panelName,
       defenseType: p.defenseType,
       assignedGroups: p.assignedGroups,
+      assignedGroupNames: (p.assignedGroups || []).map((g) => (g && g.ideaName ? g.ideaName : '—')),
       memberNames: (p.members || []).map((m) => (m && m.fullName ? m.fullName : '—')),
     }));
 
