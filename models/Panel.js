@@ -24,6 +24,12 @@ const panelSchema = new mongoose.Schema(
       ref: 'Session',
       required: true,
     },
+    assignedGroups: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Group',
+      },
+    ],
   },
   { timestamps: true }
 );

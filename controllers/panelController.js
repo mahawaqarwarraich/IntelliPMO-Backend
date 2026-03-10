@@ -57,6 +57,7 @@ export async function createPanel(req, res) {
       members: ids,
       defenseType,
       session_id: activeSession._id,
+      assignedGroups: [],
     });
 
     return res.status(201).json({
@@ -67,6 +68,7 @@ export async function createPanel(req, res) {
         members: panel.members,
         defenseType: panel.defenseType,
         session_id: panel.session_id,
+        assignedGroups: panel.assignedGroups,
         createdAt: panel.createdAt,
       },
     });
@@ -76,6 +78,110 @@ export async function createPanel(req, res) {
     }
     console.error('createPanel error:', err);
     return res.status(500).json({ message: err.message || 'Failed to create panel.' });
+  }
+}
+
+/**
+ * GET /api/panels?defenseType=d1|d2 (protected, Admin only).
+ * Returns panels for the active session matching the given defense type.
+ */
+export async function getPanels(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const defenseType = (req.query?.defenseType || '').toLowerCase();
+    if (defenseType !== 'd1' && defenseType !== 'd2') {
+      return res.status(400).json({ message: 'Query defenseType is required and must be d1 or d2.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ panels: [] });
+    }
+
+    const panels = await Panel.find({
+      session_id: activeSession._id,
+      defenseType,
+    })
+      .select('_id panelName defenseType assignedGroups')
+      .sort({ panelName: 1 })
+      .lean();
+
+    return res.status(200).json({ panels: panels || [] });
+  } catch (err) {
+    console.error('getPanels error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch panels.' });
+  }
+}
+
+/**
+ * POST /api/panels/:panelId/assign-groups (protected, Admin only).
+ * Body: { groupIds: [groupId, ...] }.
+ * Adds the given groups to the panel's assignedGroups array for the active session.
+ * Only allows groups that are registered (overallStatus true) in the active session.
+ */
+export async function assignGroupsToPanel(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const { panelId } = req.params;
+    if (!panelId || !mongoose.Types.ObjectId.isValid(panelId)) {
+      return res.status(400).json({ message: 'Invalid panel id.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session. Cannot create assignments.' });
+    }
+
+    const panel = await Panel.findOne({ _id: panelId, session_id: activeSession._id }).select('_id').lean();
+    if (!panel) {
+      return res.status(404).json({ message: 'Panel not found for the active session.' });
+    }
+
+    const { groupIds } = req.body;
+    if (!Array.isArray(groupIds) || groupIds.length === 0) {
+      return res.status(400).json({ message: 'At least one group id is required.' });
+    }
+
+    const uniqueIds = [...new Set(groupIds)].filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (uniqueIds.length === 0) {
+      return res.status(400).json({ message: 'No valid group ids provided.' });
+    }
+
+    // Ensure groups exist, are in the active session, and are registered (overallStatus true).
+    const { Group } = await import('../models/Group.js');
+    const groups = await Group.find({
+      _id: { $in: uniqueIds },
+      session_id: activeSession._id,
+      overallStatus: true,
+    })
+      .select('_id')
+      .lean();
+
+    if (!groups || groups.length !== uniqueIds.length) {
+      return res.status(400).json({ message: 'One or more groups are not valid registered groups in the active session.' });
+    }
+
+    const updated = await Panel.findByIdAndUpdate(
+      panelId,
+      { $addToSet: { assignedGroups: { $each: uniqueIds } } },
+      { new: true }
+    )
+      .select('_id panelName assignedGroups')
+      .lean();
+
+    return res.status(200).json({
+      message: 'Groups assigned to panel successfully.',
+      panel: updated,
+    });
+  } catch (err) {
+    console.error('assignGroupsToPanel error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to assign groups to panel.' });
   }
 }
 
