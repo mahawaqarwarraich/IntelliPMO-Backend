@@ -37,6 +37,7 @@ const groupSchema = new mongoose.Schema(
     supervisorStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
     supervisorMessage: { type: String, trim: true, default: '' },
     overallStatus: { type: Boolean, default: false },
+    panelAssigned: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
