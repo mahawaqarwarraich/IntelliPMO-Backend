@@ -245,6 +245,39 @@ export async function getRegisteredUnassignedGroups(req, res) {
 }
 
 /**
+ * GET /api/admin/groups/:groupId/members (protected, Admin only).
+ * Returns the group's members (students) with _id, rollNo, fullName for the given group.
+ */
+export async function getGroupMembersByGroupId(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const { groupId } = req.params;
+    if (!groupId || !mongoose.Types.ObjectId.isValid(groupId)) {
+      return res.status(400).json({ message: 'Invalid group id.' });
+    }
+
+    const group = await Group.findById(groupId).select('members').populate('members', 'rollNo fullName').lean();
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+
+    const students = (group.members || []).map((m) => ({
+      _id: m?._id,
+      rollNo: m?.rollNo ?? '—',
+      fullName: m?.fullName ?? '—',
+    }));
+
+    return res.status(200).json({ students });
+  } catch (err) {
+    console.error('getGroupMembersByGroupId error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch group members.' });
+  }
+}
+
+/**
  * GET /api/groups/details/:groupId (protected).
  *
  * Returns a single group's display info (name + member names + supervisor name) by group id.
