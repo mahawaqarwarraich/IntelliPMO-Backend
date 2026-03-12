@@ -183,6 +183,13 @@ export async function assignGroupsToPanel(req, res) {
       .select('_id panelName assignedGroups')
       .lean();
 
+    // Also mark these groups as assigned so other APIs can filter by panelAssigned.
+    const { Group: GroupModel } = await import('../models/Group.js');
+    await GroupModel.updateMany(
+      { _id: { $in: uniqueIds }, session_id: activeSession._id },
+      { $set: { panelAssigned: true } }
+    );
+
     return res.status(200).json({
       message: 'Groups assigned to panel successfully.',
       panel: updated,

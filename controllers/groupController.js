@@ -204,6 +204,47 @@ export async function getAllRegisteredGroups(req, res) {
 }
 
 /**
+ * GET /api/admin/groups/registered-unassigned (protected, Admin only).
+ * Returns registered groups for the active session where panelAssigned is false.
+ * Used by the PanelAssignmentD1 screen so only unassigned groups appear.
+ */
+export async function getRegisteredUnassignedGroups(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
+    const groups = await Group.find({
+      session_id: activeSession._id,
+      overallStatus: true,
+      panelAssigned: false,
+    })
+      .populate('supervisor_id', 'fullName')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const list = groups.map((g) => {
+      const { supervisor_id: sup, ...rest } = g;
+      return {
+        ...rest,
+        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisorName: sup?.fullName ?? '',
+      };
+    });
+
+    return res.status(200).json({ groups: list });
+  } catch (err) {
+    console.error('getRegisteredUnassignedGroups error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch unassigned groups.' });
+  }
+}
+
+/**
  * GET /api/groups/details/:groupId (protected).
  *
  * Returns a single group's display info (name + member names + supervisor name) by group id.
