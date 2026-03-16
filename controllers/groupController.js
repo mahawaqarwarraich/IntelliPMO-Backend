@@ -259,7 +259,10 @@ export async function getGroupMembersByGroupId(req, res) {
       return res.status(400).json({ message: 'Invalid group id.' });
     }
 
-    const group = await Group.findById(groupId).select('members').populate('members', 'rollNo fullName').lean();
+    const group = await Group.findById(groupId)
+      .select('members')
+      .populate('members', 'rollNo fullName adminD1Marks')
+      .lean();
     if (!group) {
       return res.status(404).json({ message: 'Group not found.' });
     }
@@ -268,6 +271,7 @@ export async function getGroupMembersByGroupId(req, res) {
       _id: m?._id,
       rollNo: m?.rollNo ?? '—',
       fullName: m?.fullName ?? '—',
+      adminD1Marks: Boolean(m?.adminD1Marks),
     }));
 
     return res.status(200).json({ students });
