@@ -53,6 +53,10 @@ const studentSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    adminD1Marks: {
+     type: bool,
+     default: false
+    },
   },
   { timestamps: true }
 );

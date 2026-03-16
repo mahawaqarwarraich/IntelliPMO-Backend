@@ -20,6 +20,7 @@ import meetingRoutes from './routes/meetingRoutes.js';
 import deadlineRoutes from './routes/deadlineRoutes.js';
 import submissionRoutes from './routes/submissionRoutes.js';
 import panelRoutes from './routes/panelRoutes.js';
+import d1EvaluationFormRoutes from './routes/d1EvaluationFormRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -49,6 +50,7 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/deadlines', deadlineRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/panels', panelRoutes);
+app.use('/api/admin/d1-evaluation-form', d1EvaluationFormRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'FYP Management System API' });
