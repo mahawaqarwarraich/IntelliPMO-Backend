@@ -31,8 +31,6 @@ const MARK_FIELDS = [
  */
 export async function upsertD1EvaluationForm(req, res) {
   try {
-    
-
     const studentId = req.params.studentId;
     if (!studentId || !mongoose.Types.ObjectId.isValid(studentId)) {
       return res.status(400).json({ message: 'Valid student id is required.' });
@@ -53,6 +51,11 @@ export async function upsertD1EvaluationForm(req, res) {
           updates[key] = num;
         }
       }
+    }
+
+    // If admin has provided adminMarks10 in this request, mark that admin D1 marks have been given for this student.
+    if (Object.prototype.hasOwnProperty.call(updates, 'adminMarks10')) {
+      await Student.findByIdAndUpdate(studentId, { $set: { adminD1Marks: true } }, { new: false });
     }
 
     let form = await D1EvaluationForm.findOne({ student_id: studentId }).lean();
