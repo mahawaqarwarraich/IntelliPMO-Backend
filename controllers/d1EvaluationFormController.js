@@ -24,7 +24,7 @@ const MARK_FIELDS = [
 ];
 
 /**
- * PATCH /api/admin/d1-evaluation-form/:studentId (protected).
+ * PATCH /api/d1-evaluation-form/:studentId (protected).
  * Creates or updates the D1 evaluation form for the given student.
  * Body: any subset of form fields (e.g. { adminMarks10: 8 }). Only fields present in the model are applied.
  * After create/update, obtainedMarks80 is set to the sum of all mark fields.

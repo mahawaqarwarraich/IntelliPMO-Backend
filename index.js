@@ -50,7 +50,7 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/deadlines', deadlineRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/panels', panelRoutes);
-app.use('/api/admin/d1-evaluation-form', d1EvaluationFormRoutes);
+app.use('/api/d1-evaluation-form', d1EvaluationFormRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'FYP Management System API' });
