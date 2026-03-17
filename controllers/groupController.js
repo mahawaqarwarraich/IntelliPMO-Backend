@@ -250,7 +250,7 @@ export async function getRegisteredUnassignedGroups(req, res) {
  */
 export async function getGroupMembersByGroupId(req, res) {
   try {
-    if (req.user?.role !== 'Admin') {
+    if (req.user?.role === 'Student') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
 
