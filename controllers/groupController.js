@@ -259,12 +259,17 @@ export async function getGroupMembersByGroupId(req, res) {
       return res.status(400).json({ message: 'Invalid group id.' });
     }
 
-    const group = await Group.findById(groupId)
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
+    const group = await Group.findOne({ _id: groupId, session_id: activeSession._id })
       .select('members')
       .populate('members', 'rollNo fullName adminD1Marks')
       .lean();
     if (!group) {
-      return res.status(404).json({ message: 'Group not found.' });
+      return res.status(404).json({ message: 'Group not found for the active session.' });
     }
 
     const students = (group.members || []).map((m) => ({
