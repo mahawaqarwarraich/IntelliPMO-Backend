@@ -57,6 +57,10 @@ const studentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    supervisorD1Marks: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
