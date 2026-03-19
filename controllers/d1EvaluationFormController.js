@@ -58,6 +58,11 @@ export async function upsertD1EvaluationForm(req, res) {
       await Student.findByIdAndUpdate(studentId, { $set: { adminD1Marks: true } }, { new: false });
     }
 
+    // If supervisor has provided supervisorMarks20 in this request, mark that supervisor D1 marks have been given for this student.
+    if (Object.prototype.hasOwnProperty.call(updates, 'supervisorMarks20')) {
+      await Student.findByIdAndUpdate(studentId, { $set: { supervisorD1Marks: true } }, { new: false });
+    }
+
     let form = await D1EvaluationForm.findOne({ student_id: studentId }).lean();
     if (!form) {
       const doc = {
