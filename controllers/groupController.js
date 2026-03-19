@@ -559,7 +559,13 @@ export async function getGroupsBySupervisor(req, res) {
       return res.status(400).json({ message: 'Invalid supervisor.' });
     }
 
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
     const groups = await Group.find({
+      session_id: activeSession._id,
       supervisor_id: supervisorId,
       supervisorStatus: 'pending',
     })
@@ -597,9 +603,15 @@ export async function getGroupsBySupervisorOwn(req, res) {
       return res.status(400).json({ message: 'Invalid supervisor.' });
     }
 
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
     const groups = await Group.find({
+      session_id: activeSession._id,
       supervisor_id: supervisorId,
-      supervisorStatus: 'accepted',
+      overallStatus: true,
     })
       .populate('supervisor_id', 'fullName')
       .sort({ createdAt: 1 })
