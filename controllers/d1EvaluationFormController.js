@@ -231,15 +231,23 @@ export async function upsertD1EvaluationForm(req, res) {
       { upsert: true, new: true }
     ).lean();
 
-    // Recalculate obtainedMarks80 from nested criterion obtained marks.
-    let total = 0;
+    // Recalculate total.obtainedMarks from all criterion obtained marks (cap at total.maxMarks, default 80).
+    let sum = 0;
     for (const key of CRITERIA_KEYS) {
-      total += Number(form?.[key]?.obtainedMarks) || 0;
+      sum += Number(form?.[key]?.obtainedMarks) || 0;
     }
+    const maxTotal = Number(form?.total?.maxMarks);
+    const cap = Number.isFinite(maxTotal) && maxTotal > 0 ? maxTotal : 80;
+    const obtainedTotal = Math.min(sum, cap);
 
     form = await D1EvaluationForm.findOneAndUpdate(
       { student_id: studentId },
-      { $set: { obtainedMarks80: total } },
+      {
+        $set: {
+          'total.maxMarks': cap,
+          'total.obtainedMarks': obtainedTotal,
+        },
+      },
       { new: true }
     ).lean();
 

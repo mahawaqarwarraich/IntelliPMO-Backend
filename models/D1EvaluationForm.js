@@ -115,7 +115,10 @@ const d1EvaluationFormSchema = new mongoose.Schema(
       type: markFieldSchema,
       default: () => ({ maxMarks: 10, obtainedMarks: 0 }),
     },
-    obtainedMarks80: { type: Number, default: 0, min: 0 },
+    total: {
+      type: markFieldSchema,
+      default: () => ({ maxMarks: 80, obtainedMarks: 0 }),
+    },
   },
   { timestamps: true }
 );
