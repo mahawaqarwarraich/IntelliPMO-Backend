@@ -61,6 +61,10 @@ const studentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    evaluatorD1Marks: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
