@@ -3,6 +3,7 @@ import { Group } from '../models/Group.js';
 import { Session } from '../models/Session.js';
 import { Student } from '../models/Student.js';
 import { Supervisor } from '../models/Supervisor.js';
+import { Panel } from '../models/Panel.js';
 
 /**
  * POST /api/groups (protected).
@@ -635,6 +636,74 @@ export async function getGroupsBySupervisorOwn(req, res) {
     return res.status(200).json({ groups: list });
   } catch (err) {
     console.error('getGroupsBySupervisorOwn error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
+  }
+}
+
+/**
+ * GET /api/evaluator/groups/own (protected, evaluator).
+ *
+ * Returns groups (overallStatus = true) that are assigned to any D1 panel
+ * where the logged-in evaluator is a member, limited to the active session.
+ */
+export async function getGroupsByEvaluatorOwn(req, res) {
+  try {
+    if (req.user?.role !== 'Evaluator') {
+      return res.status(403).json({ message: 'Only evaluators can access this.' });
+    }
+
+    const evaluatorId = req.user.userId;
+    if (!evaluatorId || !mongoose.Types.ObjectId.isValid(evaluatorId)) {
+      return res.status(400).json({ message: 'Invalid evaluator.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(400).json({ message: 'No active session.' });
+    }
+
+    const panels = await Panel.find({
+      session_id: activeSession._id,
+      defenseType: 'd1',
+      members: evaluatorId,
+    })
+      .select('assignedGroups')
+      .lean();
+
+    const groupIds = [
+      ...new Set(
+        (panels || [])
+          .flatMap((p) => p?.assignedGroups || [])
+          .filter((id) => mongoose.Types.ObjectId.isValid(String(id)))
+          .map((id) => String(id))
+      ),
+    ];
+
+    if (groupIds.length === 0) {
+      return res.status(200).json({ groups: [] });
+    }
+
+    const groups = await Group.find({
+      _id: { $in: groupIds },
+      session_id: activeSession._id,
+      overallStatus: true,
+    })
+      .populate('supervisor_id', 'fullName')
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const list = groups.map((g) => {
+      const { supervisor_id: sup, ...rest } = g;
+      return {
+        ...rest,
+        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisorName: sup?.fullName ?? '',
+      };
+    });
+
+    return res.status(200).json({ groups: list });
+  } catch (err) {
+    console.error('getGroupsByEvaluatorOwn error:', err);
     return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
   }
 }
