@@ -267,7 +267,7 @@ export async function getGroupMembersByGroupId(req, res) {
 
     const group = await Group.findOne({ _id: groupId, session_id: activeSession._id })
       .select('members')
-      .populate('members', 'rollNo fullName adminD1Marks supervisorD1Marks')
+      .populate('members', 'rollNo fullName adminD1Marks supervisorD1Marks evaluatorD1Marks')
       .lean();
     if (!group) {
       return res.status(404).json({ message: 'Group not found for the active session.' });
@@ -279,6 +279,7 @@ export async function getGroupMembersByGroupId(req, res) {
       fullName: m?.fullName ?? '—',
       adminD1Marks: Boolean(m?.adminD1Marks),
       supervisorD1Marks: Boolean(m?.supervisorD1Marks),
+      evaluatorD1Marks: Boolean(m?.evaluatorD1Marks),
     }));
 
     return res.status(200).json({ students });
