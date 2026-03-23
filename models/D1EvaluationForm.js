@@ -115,6 +115,11 @@ const d1EvaluationFormSchema = new mongoose.Schema(
       type: markFieldSchema,
       default: () => ({ maxMarks: 10, obtainedMarks: 0 }),
     },
+    /** Roll-up of evaluator rubric (sum of criteria above); same shape as supervisorMarks / adminMarks. Max = 52. */
+    evaluatorMarks: {
+      type: markFieldSchema,
+      default: () => ({ maxMarks: 52, obtainedMarks: 0 }),
+    },
     total: {
       type: markFieldSchema,
       default: () => ({ maxMarks: 80, obtainedMarks: 0 }),

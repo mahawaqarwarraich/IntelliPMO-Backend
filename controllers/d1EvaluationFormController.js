@@ -153,6 +153,27 @@ const CRITERIA_KEYS = [
   'adminMarks',
 ];
 
+/** Rubric keys that make up evaluatorMarks (stored like supervisor/admin: subdocs + rollup). */
+const EVALUATOR_RUBRIC_KEYS = [
+  'understandingOfExistingSystem',
+  'wellDefinedGoalsAndObjectives',
+  'conceptualArchitecture',
+  'presentationSkill',
+  'functionalRequirement',
+  'interfaces',
+  'usecaseDescription',
+  'usecaseDiagram',
+  'nonFunctionalAttribute',
+  'domainModelOrErd',
+  'classDiagramOrDataFlowDiagram',
+  'sequenceDiagramOrStateTransitionDiagram',
+  'stateChartDiagramOrArchitecturalDiagram',
+  'collaborationDiagramOrComponentDiagram',
+  'partialWorkingSystem',
+];
+
+const EVALUATOR_MARKS_MAX = 52;
+
 function toNonNegativeNumber(v) {
   const n = typeof v === 'number' && Number.isFinite(v) ? v : Number(v);
   return Number.isFinite(n) && n >= 0 ? n : null;
@@ -220,6 +241,10 @@ export async function upsertD1EvaluationForm(req, res) {
     if (touchedKeys.has('supervisorMarks')) {
       await Student.findByIdAndUpdate(studentId, { $set: { supervisorD1Marks: true } }, { new: false });
     }
+    const touchedEvaluatorRubric = [...touchedKeys].some((k) => EVALUATOR_RUBRIC_KEYS.includes(k));
+    if (touchedEvaluatorRubric) {
+      await Student.findByIdAndUpdate(studentId, { $set: { evaluatorD1Marks: true } }, { new: false });
+    }
 
     // Upsert the form with incoming field updates first.
     let form = await D1EvaluationForm.findOneAndUpdate(
@@ -240,12 +265,21 @@ export async function upsertD1EvaluationForm(req, res) {
     const cap = Number.isFinite(maxTotal) && maxTotal > 0 ? maxTotal : 80;
     const obtainedTotal = Math.min(sum, cap);
 
+    // Evaluator rollup (same pattern as supervisorMarks / adminMarks: { maxMarks, obtainedMarks }).
+    let evaluatorObtained = 0;
+    for (const key of EVALUATOR_RUBRIC_KEYS) {
+      evaluatorObtained += Number(form?.[key]?.obtainedMarks) || 0;
+    }
+    evaluatorObtained = Math.min(evaluatorObtained, EVALUATOR_MARKS_MAX);
+
     form = await D1EvaluationForm.findOneAndUpdate(
       { student_id: studentId },
       {
         $set: {
           'total.maxMarks': cap,
           'total.obtainedMarks': obtainedTotal,
+          'evaluatorMarks.maxMarks': EVALUATOR_MARKS_MAX,
+          'evaluatorMarks.obtainedMarks': evaluatorObtained,
         },
       },
       { new: true }
