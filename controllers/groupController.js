@@ -716,3 +716,64 @@ export async function getGroupsByEvaluatorOwn(req, res) {
     return res.status(500).json({ message: err.message || 'Failed to fetch groups.' });
   }
 }
+
+/**
+ * DELETE /api/groups/:id (protected).
+ * `:id` is the student's user id.
+ *
+ * For students: allow deletion only when either `adminStatus` OR `supervisorStatus` is 'rejected'.
+ * Unlinks all students in that group (sets their `group_id` to null), then deletes the group.
+ */
+export async function deleteGroupByStudentId(req, res) {
+  try {
+    if (req.user?.role !== 'Student') {
+      return res.status(403).json({ message: 'Only students can delete their group.' });
+    }
+
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Invalid student id.' });
+    }
+
+    if (!req.user?.userId || String(req.user.userId) !== String(id)) {
+      return res.status(403).json({ message: 'You can only delete your own group.' });
+    }
+
+    const student = await Student.findById(id).select('group_id').lean();
+    if (!student || !student.group_id) {
+      return res.status(404).json({ message: 'No group found for this student.' });
+    }
+
+    const groupId = student.group_id;
+    const group = await Group.findById(groupId)
+      .select('adminStatus supervisorStatus members overallStatus supervisor_id')
+      .lean();
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found.' });
+    }
+
+    const isRejected = group.adminStatus === 'rejected' || group.supervisorStatus === 'rejected';
+    if (!isRejected) {
+      return res.status(400).json({ message: 'Group can only be deleted after rejection.' });
+    }
+
+    // Unlink group from all students that reference it.
+    await Student.updateMany({ group_id: groupId }, { $set: { group_id: null } });
+
+    // If this group had ever been fully accepted, we reduce the supervisor count if possible.
+    if (group.overallStatus === true && group.supervisor_id) {
+      const supervisor = await Supervisor.findById(group.supervisor_id).select('groupsCount').lean();
+      const count = supervisor?.groupsCount ?? 0;
+      if (count > 0) {
+        await Supervisor.findByIdAndUpdate(group.supervisor_id, { $inc: { groupsCount: -1 } });
+      }
+    }
+
+    await Group.findByIdAndDelete(groupId);
+
+    return res.status(200).json({ message: 'Group deleted successfully.' });
+  } catch (err) {
+    console.error('deleteGroupByStudentId error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to delete group.' });
+  }
+}
