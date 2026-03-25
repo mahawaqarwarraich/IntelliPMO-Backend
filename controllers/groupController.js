@@ -171,7 +171,10 @@ export async function getGroupsByAdmin(req, res) {
 /**
  * GET /api/groups/registered (protected).
  * Gets active session, then groups where session_id = active session and overallStatus = true.
- * Returns all group fields; populates supervisor and sends supervisorName. Sorted by createdAt ascending.
+ * Returns all group fields; populates supervisor and members, and also sends:
+ * - `supervisorName` (string)
+ * - `memberNames` (string[])
+ * Sorted by createdAt ascending.
  */
 export async function getAllRegisteredGroups(req, res) {
   try {
@@ -185,15 +188,20 @@ export async function getAllRegisteredGroups(req, res) {
       overallStatus: true,
     })
       .populate('supervisor_id', 'fullName')
+      .populate('members', 'fullName')
       .sort({ createdAt: 1 })
       .lean();
 
     const list = groups.map((g) => {
-      const { supervisor_id: sup, ...rest } = g;
+      const { supervisor_id: sup, members, ...rest } = g;
+      const memberNames = Array.isArray(members)
+        ? members.map((m) => m?.fullName).filter(Boolean)
+        : [];
       return {
         ...rest,
-        supervisor_id: g.supervisor_id?._id ?? g.supervisor_id,
+        supervisor_id: sup?._id ?? sup,
         supervisorName: sup?.fullName ?? '',
+        memberNames,
       };
     });
 
