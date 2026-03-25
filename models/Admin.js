@@ -25,16 +25,11 @@ const adminSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
-    session_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'Session',
-    },
   },
   { timestamps: true }
 );
 
-adminSchema.index({ email: 1, session_id: 1 }, { unique: true });
+adminSchema.index({ email: 1 }, { unique: true });
 
 const Admin = mongoose.model('Admin', adminSchema);
 

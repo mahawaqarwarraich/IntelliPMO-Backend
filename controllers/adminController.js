@@ -1,9 +1,8 @@
-import mongoose from 'mongoose';
+
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Admin } from '../models/Admin.js';
 import { Session } from '../models/Session.js';
-import { SessionStat } from '../models/SessionStat.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
@@ -15,14 +14,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'email', 'password', 'session_id', 'designation'];
+  const required = ['fullName', 'email', 'password', 'designation'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
     }
-  }
-  if (!mongoose.Types.ObjectId.isValid(body.session_id)) {
-    return { valid: false, message: 'Please select a valid session.' };
   }
   if (typeof body.designation !== 'string' || body.designation.trim().length < 2) {
     return { valid: false, message: 'Designation must be at least 2 characters.' };
@@ -37,14 +33,13 @@ export async function registerAdmin(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, email, password, session_id, designation } = req.body;
+    const { fullName, email, password, designation } = req.body;
 
     const existing = await Admin.findOne({
       email: email.trim().toLowerCase(),
-      session_id,
     }).select('_id');
     if (existing) {
-      return res.status(409).json({ message: 'You are already registered for this session.' });
+      return res.status(409).json({ message: 'An admin with this email is already registered.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -54,7 +49,6 @@ export async function registerAdmin(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       designation: designation.trim(),
-      session_id: session_id,
     });
 
     const adminObj = admin.toObject ? admin.toObject() : admin;
@@ -74,7 +68,7 @@ export async function registerAdmin(req, res) {
     }
     if (err.code === 11000) {
       return res.status(409).json({
-        message: 'You are already registered for this session.',
+        message: 'An admin with this email is already registered.',
       });
     }
     console.error('registerAdmin error:', err);
@@ -179,8 +173,7 @@ function validateSaveSessionBody(body) {
 
 /**
  * POST /api/admins/save-session (protected by auth).
- * If status is active: check session stats; if activeSessions is 1 return error; if 0 increment by 1 and proceed.
- * Then upsert Session by year.
+ * Creates or updates session fields by year (status on create uses schema default; use update-session to change status).
  */
 export async function saveSession(req, res) {
   try {
@@ -268,8 +261,8 @@ function validateUpdateSessionBody(body) {
 
 /**
  * POST /api/admins/update-session (protected by auth).
- * If status is active: check session stats; if activeSessions is 1 return error; if 0 increment by 1.
- * Then find session by year and update its status.
+ * At most one session may be active: enforced by counting Session docs with status active
+ * (excluding the session being updated when it is already active).
  */
 export async function updateSession(req, res) {
   try {
@@ -280,25 +273,6 @@ export async function updateSession(req, res) {
 
     const { year, status } = validation.data;
 
-    if (status === 'active') {
-      const sessionStat = await SessionStat.findOne({ key: 'global' });
-      const activeCount = sessionStat ? sessionStat.activeSessions : 0;
-
-      if (activeCount === 1) {
-        return res.status(400).json({
-          message: 'One session is already active. You cannot activate two at the same time.',
-        });
-      }
-
-      if (activeCount === 0) {
-        await SessionStat.findOneAndUpdate(
-          { key: 'global' },
-          { $inc: { activeSessions: 1 } },
-          { upsert: true, new: true }
-        );
-      }
-    }
-
     const sessionDoc = await Session.findOne({ year });
     if (!sessionDoc) {
       return res.status(404).json({
@@ -306,17 +280,20 @@ export async function updateSession(req, res) {
       });
     }
 
-    const wasActive = sessionDoc.status === 'active';
+    if (status === 'active' && sessionDoc.status !== 'active') {
+      const otherActive = await Session.findOne({
+        status: 'active',
+        year: { $ne: year },
+      }).select('_id');
+      if (otherActive) {
+        return res.status(400).json({
+          message: 'One session is already active. You cannot activate two at the same time.',
+        });
+      }
+    }
+
     sessionDoc.status = status;
     await sessionDoc.save();
-
-    if (wasActive && status !== 'active') {
-      await SessionStat.findOneAndUpdate(
-        { key: 'global' },
-        { $inc: { activeSessions: -1 } },
-        { new: true }
-      );
-    }
 
     return res.status(200).json({
       message: 'Session status updated successfully.',
