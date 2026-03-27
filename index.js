@@ -22,6 +22,7 @@ import submissionRoutes from './routes/submissionRoutes.js';
 import panelRoutes from './routes/panelRoutes.js';
 import d1EvaluationFormRoutes from './routes/d1EvaluationFormRoutes.js';
 import evaluatorGroupRoutes from './routes/evaluatorGroupRoutes.js';
+import fiaRoutes from './routes/fiaRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,6 +54,7 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/panels', panelRoutes);
 app.use('/api/d1-evaluation-form', d1EvaluationFormRoutes);
 app.use('/api/evaluator/groups', evaluatorGroupRoutes);
+app.use('/api/fia', fiaRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'FYP Management System API' });
