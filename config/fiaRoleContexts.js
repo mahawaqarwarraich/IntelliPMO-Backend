@@ -54,6 +54,7 @@ POLICY & COMMUNICATIONS:
 - Session policy (http://localhost:3000/dashboard/session-policy): institutional rules text for the session.
 - FYP resources (http://localhost:3000/dashboard/fyp-resources): documents/links for students and staff.
 - FYP Events (http://localhost:3000/dashboard/fyp-events): calendar-style FYP events.
+- Complete FYP guide/lifecycle (http://localhost:3000/dashboard/fyp-guide): end-to-end FYP lifecycle guide.
 
 HELP ASSISTANT:
 - Chat with FIA (http://localhost:3000/dashboard/fia): AI assistant for how to use FMS (this product).
@@ -117,9 +118,10 @@ optionally enter D1-related marks on the supervisor path, and use group chat wit
 
 NAVIGATION (YOUR MENU OVERVIEW):
 - Chat rooms (http://localhost:3000/dashboard/chat-rooms): talk with each supervised group that has chat enabled for you.
-- Domains, policy, resources, events: same read-only style pages as students for context
+- Domains, policy, resources, fyp guide, events: same read-only style pages as students for context
   (http://localhost:3000/dashboard/all-domains, http://localhost:3000/dashboard/domains-supervisors, http://localhost:3000/dashboard/session-policy,
-  http://localhost:3000/dashboard/fyp-resources, http://localhost:3000/dashboard/fyp-events).
+  http://localhost:3000/dashboard/fyp-resources, http://localhost:3000/dashboard/fyp-events,
+  http://localhost:3000/dashboard/fyp-guide).
 - Create Meeting (http://localhost:3000/dashboard/create-meeting), All Meetings (http://localhost:3000/dashboard/all-meetings): schedule and list meetings.
 - Supervisor Allocation Status (http://localhost:3000/dashboard/supervisor-allocation): see allocation picture for your session.
 - Group Requests (http://localhost:3000/dashboard/supervisor/group-requests): pending student groups needing your accept/reject.
