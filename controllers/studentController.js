@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import { Student } from '../models/Student.js';
 import { Session } from '../models/Session.js';
@@ -10,6 +11,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const TOKEN_EXPIRY = '7d';
 
 const SALT_ROUNDS = 10;
+
+function createMailer() {
+  const user = process.env.GMAIL_USER || 'your-email@gmail.com';
+  const pass = process.env.GMAIL_PASS || 'your-app-password';
+  const from = process.env.MAIL_FROM || user;
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+
+  return { transporter, from };
+}
 
 /**
  * Validate required registration fields.
@@ -51,9 +65,10 @@ export async function registerStudent(req, res) {
     }
 
     // Student accounts are created without taking a password from the UI.
-    // Default password is set to rollNo (can be changed later if a change-password flow exists).
+    // Set an unusable random password; user will set password via emailed token link.
     const rollNoTrimmed = rollNo.trim();
-    const hashedPassword = await bcrypt.hash(rollNoTrimmed, SALT_ROUNDS);
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await bcrypt.hash(randomPassword, SALT_ROUNDS);
 
     const student = await Student.create({
       fullName: fullName.trim(),
@@ -70,9 +85,48 @@ export async function registerStudent(req, res) {
       // expires_at is set by default (1 hour) in the Token model
     });
 
+    const { transporter, from } = createMailer();
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+    const setPasswordUrl = `${frontendBaseUrl}/set-password?token=${encodeURIComponent(tokenValue)}`;
+    try {
+      await transporter.sendMail({
+        from,
+        to: student.email,
+        subject: 'Set your password',
+        text: `Hi,
+
+Your account has been created on IntelliPMO.
+
+To get started, please set your password by clicking the link below:
+
+Set Your Password
+${setPasswordUrl}
+
+This link will expire in 1 hour for security reasons.
+
+If you did not expect this email, you can safely ignore it.
+
+Thanks,
+IntelliPMO Support Team`,
+        html: `<div style="font-family:Segoe UI,system-ui,-apple-system,Arial,sans-serif;line-height:1.5;color:#111827;">
+<p>Hi,</p>
+<p>Your account has been created on IntelliPMO.</p>
+<p>To get started, please set your password by clicking the button below:</p>
+<p><a href="${setPasswordUrl}" style="display:inline-block;padding:12px 16px;background:#0097a7;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">👉 Set Your Password</a></p>
+<p><small>This link will expire in 1 hour for security reasons.</small></p>
+<p>If you did not expect this email, you can safely ignore it.</p>
+<p>Thanks,<br/>IntelliPMO Support Team</p>
+</div>`,
+      });
+    } catch (mailErr) {
+      await Token.deleteOne({ token: tokenValue }).catch(() => {});
+      await Student.deleteOne({ _id: student._id }).catch(() => {});
+      throw mailErr;
+    }
+
     return res.status(201).json({
-      message: 'Account created successfully.',
-     
+      message: 'Account created and invite sent successfully.',
+      token: tokenValue,
     });
   } catch (err) {
     if (err.name === 'ValidationError') {
