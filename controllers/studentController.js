@@ -14,15 +14,11 @@ const SALT_ROUNDS = 10;
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'rollNo', 'cgpa', 'email', 'password', 'session_id'];
+  const required = ['fullName', 'rollNo', 'email', 'session_id'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
     }
-  }
-  const cgpa = Number(body.cgpa);
-  if (Number.isNaN(cgpa) || cgpa < 0 || cgpa > 4) {
-    return { valid: false, message: 'CGPA must be a number between 0 and 4.' };
   }
   if (!mongoose.Types.ObjectId.isValid(body.session_id)) {
     return { valid: false, message: 'Please select a valid session.' };
@@ -40,15 +36,7 @@ export async function registerStudent(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, rollNo, cgpa, email, password, session_id } = req.body;
-
-    const cgpaNum = Number(cgpa);
-    const sessionDoc = await Session.findById(session_id).select('minCGPA').lean();
-    if (sessionDoc != null && cgpaNum < sessionDoc.minCGPA) {
-      return res.status(400).json({
-        message: `Only students with CGPA from ${sessionDoc.minCGPA} to 4 can register to the system.`,
-      });
-    }
+    const { fullName, rollNo, email, session_id } = req.body;
 
     const existingEmail = await Student.findOne({ email: email.trim().toLowerCase() }).select('_id');
     if (existingEmail) {
@@ -60,15 +48,17 @@ export async function registerStudent(req, res) {
       return res.status(409).json({ message: 'An account with this roll number already exists.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    // Student accounts are created without taking a password from the UI.
+    // Default password is set to rollNo (can be changed later if a change-password flow exists).
+    const rollNoTrimmed = rollNo.trim();
+    const hashedPassword = await bcrypt.hash(rollNoTrimmed, SALT_ROUNDS);
 
     const student = await Student.create({
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
       password: hashedPassword,
-      rollNo: rollNo.trim(),
+      rollNo: rollNoTrimmed,
       session_id: session_id,
-      cgpa: cgpaNum,
     });
 
  

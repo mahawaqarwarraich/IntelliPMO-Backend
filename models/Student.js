@@ -37,12 +37,6 @@ const studentSchema = new mongoose.Schema(
       ref: 'Group',
       default: null,
     },
-    cgpa: {
-      type: Number,
-      min: 0,
-      max: 4,
-      default: null,
-    },
     obtainedMarks: {
       type: Number,
       min: 0,
