@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Student } from '../models/Student.js';
 import { Session } from '../models/Session.js';
+import { Token } from '../models/Token.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
@@ -61,11 +63,16 @@ export async function registerStudent(req, res) {
       session_id: session_id,
     });
 
- 
+    const tokenValue = crypto.randomBytes(32).toString('hex');
+    await Token.create({
+      user_id: student._id,
+      token: tokenValue,
+      // expires_at is set by default (1 hour) in the Token model
+    });
 
     return res.status(201).json({
       message: 'Account created successfully.',
-    
+     
     });
   } catch (err) {
     if (err.name === 'ValidationError') {
@@ -222,7 +229,7 @@ export async function getAllStudents(req, res) {
 
     // Fetch students with the active session_id
     const students = await Student.find({ session_id: activeSession._id })
-      .select('fullName rollNo email')
+      .select('fullName rollNo email status')
       .sort({ fullName: 1 })
       .lean();
 
@@ -231,6 +238,7 @@ export async function getAllStudents(req, res) {
       studentName: s.fullName ?? '—',
       rollNo: s.rollNo ?? '—',
       email: s.email ?? '—',
+      status: s.status ?? 'pending',
       _id: s._id,
     }));
 
