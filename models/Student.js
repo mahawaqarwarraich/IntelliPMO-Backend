@@ -18,7 +18,6 @@ const studentSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
       select: false,
     },
     rollNo: {
@@ -26,6 +25,11 @@ const studentSchema = new mongoose.Schema(
       required: true,
       unique: true,
       match: /^\d{8}-\d{3}$/,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'active'],
+      default: 'pending',
     },
     session_id: {
       type: mongoose.Schema.Types.ObjectId,
