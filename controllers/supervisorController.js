@@ -1,21 +1,37 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import { Supervisor } from '../models/Supervisor.js';
 import { Domain } from '../models/Domain.js';
 import { Session } from '../models/Session.js';
+import { Token } from '../models/Token.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const TOKEN_EXPIRY = '7d';
 const SALT_ROUNDS = 10;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function createMailer() {
+  const user = process.env.GMAIL_USER || 'your-email@gmail.com';
+  const pass = process.env.GMAIL_PASS || 'your-app-password';
+  const from = process.env.MAIL_FROM || user;
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+
+  return { transporter, from };
+}
+
 /**
  * Validate required supervisor registration fields.
  * Returns { valid: false, message } or { valid: true }.
  */
 function validateRegisterBody(body) {
-  const required = ['fullName', 'email', 'password', 'session_id', 'designation', 'domain_id'];
+  const required = ['fullName', 'email', 'session_id', 'designation', 'domain_id'];
   for (const field of required) {
     if (body[field] == null || (typeof body[field] === 'string' && body[field].trim() === '')) {
       return { valid: false, message: `Missing or empty field: ${field}.` };
@@ -40,7 +56,7 @@ export async function registerSupervisor(req, res) {
       return res.status(400).json({ message: validation.message });
     }
 
-    const { fullName, email, password, session_id, designation, domain_id } = req.body;
+    const { fullName, email, session_id, designation, domain_id } = req.body;
 
     const domainDoc = await Domain.findById(domain_id).select('_id');
     if (!domainDoc) {
@@ -55,7 +71,8 @@ export async function registerSupervisor(req, res) {
       return res.status(409).json({ message: 'You are already registered for this session.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await bcrypt.hash(randomPassword, SALT_ROUNDS);
 
     const supervisor = await Supervisor.create({
       fullName: fullName.trim(),
@@ -66,12 +83,53 @@ export async function registerSupervisor(req, res) {
       domain_id: domainDoc._id,
     });
 
-    const supervisorObj = supervisor.toObject ? supervisor.toObject() : supervisor;
-    delete supervisorObj.password;
+    const tokenValue = crypto.randomBytes(32).toString('hex');
+    await Token.create({
+      user_id: supervisor._id,
+      token: tokenValue,
+    });
+
+    const { transporter, from } = createMailer();
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+    const setPasswordUrl = `${frontendBaseUrl}/set-password?token=${encodeURIComponent(tokenValue)}`;
+    try {
+      await transporter.sendMail({
+        from,
+        to: supervisor.email,
+        subject: 'Set your password',
+        text: `Hi,
+
+Your account has been created on IntelliPMO.
+
+To get started, please set your password by clicking the link below:
+
+Set Your Password
+${setPasswordUrl}
+
+This link will expire in 1 hour for security reasons.
+
+If you did not expect this email, you can safely ignore it.
+
+Thanks,
+IntelliPMO Support Team`,
+        html: `<div style="font-family:Segoe UI,system-ui,-apple-system,Arial,sans-serif;line-height:1.5;color:#111827;">
+<p>Hi,</p>
+<p>Your account has been created on IntelliPMO.</p>
+<p>To get started, please set your password by clicking the button below:</p>
+<p><a href="${setPasswordUrl}" style="display:inline-block;padding:12px 16px;background:#0097a7;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">👉 Set Your Password</a></p>
+<p><small>This link will expire in 1 hour for security reasons.</small></p>
+<p>If you did not expect this email, you can safely ignore it.</p>
+<p>Thanks,<br/>IntelliPMO Support Team</p>
+</div>`,
+      });
+    } catch (mailErr) {
+      await Token.deleteOne({ token: tokenValue }).catch(() => {});
+      await Supervisor.deleteOne({ _id: supervisor._id }).catch(() => {});
+      throw mailErr;
+    }
 
     return res.status(201).json({
       message: 'Account created successfully.',
-      supervisor: supervisorObj,
     });
   } catch (err) {
     if (err.name === 'ValidationError') {
