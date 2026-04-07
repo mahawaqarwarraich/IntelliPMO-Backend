@@ -35,6 +35,11 @@ const evaluatorSchema = new mongoose.Schema(
       ref: 'Session',
       default: null,
     },
+    status: {
+      type: String,
+      enum: ['pending', 'active'],
+      default: 'pending',
+    },
   },
   { timestamps: true }
 );

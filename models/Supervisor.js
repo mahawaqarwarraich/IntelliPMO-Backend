@@ -35,6 +35,11 @@ const supervisorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    status: {
+      type: String,
+      enum: ['pending', 'active'],
+      default: 'pending',
+    },
     groupsCount: {
       type: Number,
       default: 0,
