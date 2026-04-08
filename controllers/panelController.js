@@ -146,12 +146,23 @@ export async function assignGroupsToPanel(req, res) {
       return res.status(400).json({ message: 'No active session. Cannot create assignments.' });
     }
 
-    const panel = await Panel.findOne({ _id: panelId, session_id: activeSession._id }).select('_id').lean();
+    const panel = await Panel.findOne({ _id: panelId, session_id: activeSession._id })
+      .select('_id defenseType')
+      .lean();
     if (!panel) {
       return res.status(404).json({ message: 'Panel not found for the active session.' });
     }
 
     const { groupIds } = req.body;
+    const requestedDefenseType = String(req.body?.defenseType || '').toLowerCase();
+    const defenseType = requestedDefenseType || String(panel.defenseType || '').toLowerCase();
+    if (defenseType !== 'd1' && defenseType !== 'd2') {
+      return res.status(400).json({ message: 'defenseType must be d1 or d2.' });
+    }
+    if (requestedDefenseType && requestedDefenseType !== String(panel.defenseType || '').toLowerCase()) {
+      return res.status(400).json({ message: 'defenseType does not match the selected panel.' });
+    }
+
     if (!Array.isArray(groupIds) || groupIds.length === 0) {
       return res.status(400).json({ message: 'At least one group id is required.' });
     }
@@ -183,11 +194,12 @@ export async function assignGroupsToPanel(req, res) {
       .select('_id panelName assignedGroups')
       .lean();
 
-    // Also mark these groups as assigned so other APIs can filter by panelAssigned.
+    // Also mark these groups as assigned so other APIs can filter by panelAssignedDx.
     const { Group: GroupModel } = await import('../models/Group.js');
+    const assignmentFlag = defenseType === 'd1' ? { panelAssignedD1: true } : { panelAssignedD2: true };
     await GroupModel.updateMany(
       { _id: { $in: uniqueIds }, session_id: activeSession._id },
-      { $set: { panelAssigned: true } }
+      { $set: assignmentFlag }
     );
 
     return res.status(200).json({
