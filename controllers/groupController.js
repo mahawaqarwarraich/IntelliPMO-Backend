@@ -214,8 +214,8 @@ export async function getAllRegisteredGroups(req, res) {
 
 /**
  * GET /api/admin/groups/registered-unassigned (protected, Admin only).
- * Returns registered groups for the active session where panelAssigned is false.
- * Used by the PanelAssignmentD1 screen so only unassigned groups appear.
+ * Returns registered groups for the active session where panelAssignedD1/panelAssignedD2 is false.
+ * Query: defenseType=d1|d2 (required)
  */
 export async function getRegisteredUnassignedGroups(req, res) {
   try {
@@ -223,15 +223,21 @@ export async function getRegisteredUnassignedGroups(req, res) {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
 
+    const defenseType = String(req.query?.defenseType || '').toLowerCase();
+    if (defenseType !== 'd1' && defenseType !== 'd2') {
+      return res.status(400).json({ message: 'Query defenseType is required and must be d1 or d2.' });
+    }
+
     const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
     if (!activeSession) {
       return res.status(400).json({ message: 'No active session.' });
     }
 
+    const flagField = defenseType === 'd1' ? 'panelAssignedD1' : 'panelAssignedD2';
     const groups = await Group.find({
       session_id: activeSession._id,
       overallStatus: true,
-      panelAssigned: false,
+      [flagField]: false,
     })
       .populate('supervisor_id', 'fullName')
       .sort({ createdAt: 1 })
