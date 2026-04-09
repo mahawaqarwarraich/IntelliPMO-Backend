@@ -63,6 +63,18 @@ const studentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    adminD2Marks: {
+      type: Boolean,
+      default: false,
+    },
+    supervisorD2Marks: {
+      type: Boolean,
+      default: false,
+    },
+    evaluatorD2Marks: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
