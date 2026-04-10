@@ -664,13 +664,19 @@ export async function getGroupsBySupervisorOwn(req, res) {
 /**
  * GET /api/evaluator/groups/own (protected, evaluator).
  *
- * Returns groups (overallStatus = true) that are assigned to any D1 panel
+ * Returns groups (overallStatus = true) that are assigned to any panel (D1 or D2)
  * where the logged-in evaluator is a member, limited to the active session.
  */
 export async function getGroupsByEvaluatorOwn(req, res) {
   try {
     if (req.user?.role !== 'Evaluator') {
       return res.status(403).json({ message: 'Only evaluators can access this.' });
+    }
+
+    const defenseTypeRaw = req.query?.defenseType;
+    const defenseType = typeof defenseTypeRaw === 'string' ? defenseTypeRaw.trim().toLowerCase() : '';
+    if (defenseType !== 'd1' && defenseType !== 'd2') {
+      return res.status(400).json({ message: "Valid defenseType is required ('d1' or 'd2')." });
     }
 
     const evaluatorId = req.user.userId;
@@ -685,7 +691,7 @@ export async function getGroupsByEvaluatorOwn(req, res) {
 
     const panels = await Panel.find({
       session_id: activeSession._id,
-      defenseType: 'd1',
+      defenseType,
       members: evaluatorId,
     })
       .select('assignedGroups')
