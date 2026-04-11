@@ -7,3 +7,4 @@ export { Supervisor } from './Supervisor.js';
 export { Evaluator } from './Evaluator.js';
 export { SessionState } from './SessionStat.js';
 export { Token } from './Token.js';
+export { Marks } from './Marks.js';
