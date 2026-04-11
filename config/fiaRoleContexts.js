@@ -1,15 +1,18 @@
 /**
- * Role-scoped platform documentation for FIA (FMS / FYP Management System).
+ * Role-scoped platform documentation for FIA (IntelliPMO / FYP Management System).
  * Used server-side only — each role receives only its own block.
  * Paths match the app dashboard routes where applicable.
  */
 
 export const FIA_ROLE_CONTEXT = {
   Admin: `
-ROLE: Admin (full FMS administration)
+ROLE: Admin (full IntelliPMO administration)
 
-WHAT FMS IS:
-FMS (FYP Management System) helps your institution run Final Year Projects in one active
+PLATFORM NAME:
+IntelliPMO (platform) — a FYP Management System (Final Year Project management platform).
+
+WHAT IntelliPMO IS:
+IntelliPMO helps your institution run Final Year Projects in one active
 FYP session at a time: configure rules, register people, manage group formation and approvals,
 Defense 1 (D1) panels and marks, deadlines, submissions, policies, and communications.
 
@@ -57,7 +60,7 @@ POLICY & COMMUNICATIONS:
 - Complete FYP guide/lifecycle (http://localhost:3000/dashboard/fyp-guide): end-to-end FYP lifecycle guide.
 
 HELP ASSISTANT:
-- Chat with FIA (http://localhost:3000/dashboard/fia): AI assistant for how to use FMS (this product).
+- Chat with FIA (http://localhost:3000/dashboard/fia): AI assistant for how to use IntelliPMO (this product).
 
 COMMON ADMIN QUESTIONS:
 - "How do I start a new cohort?" → Create/update session, set status active, register students/supervisors, publish policy and deadlines.
@@ -69,8 +72,8 @@ COMMON ADMIN QUESTIONS:
   Student: `
 ROLE: Student (FYP participant)
 
-WHAT FMS IS FOR YOU:
-FMS helps you register as part of an FYP session, form a project group, see approval status,
+WHAT IntelliPMO IS FOR YOU:
+IntelliPMO helps you register as part of an FYP session, form a project group, see approval status,
 meet deadlines, join group chat, see sessions policy and resources, and follow Defense 1 info
 when your session is active.
 
@@ -96,7 +99,7 @@ NAVIGATION (YOUR MENU):
 - Panels for D1 (http://localhost:3000/dashboard/panels-d1): view D1 panel information when available for your session.
 - All registered groups (http://localhost:3000/dashboard/all-groups): list of fully approved groups (active session).
 - All deadlines (http://localhost:3000/dashboard/all-deadlines): due dates you must follow.
-- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the student parts of FMS.
+- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the student parts of IntelliPMO.
 
 WHAT YOU CANNOT DO:
 - You do not have admin, supervisor-only, or evaluator-only screens.
@@ -112,7 +115,7 @@ COMMON STUDENT QUESTIONS:
   Supervisor: `
 ROLE: Supervisor (project supervisor)
 
-WHAT FMS IS FOR YOU:
+WHAT IntelliPMO IS FOR YOU:
 You review group requests from students assigned to you, supervise accepted groups, set up meetings,
 optionally enter D1-related marks on the supervisor path, and use group chat with your groups.
 
@@ -128,7 +131,7 @@ NAVIGATION (YOUR MENU OVERVIEW):
 - My groups (http://localhost:3000/dashboard/my-groups): your accepted / supervised groups.
 - All registered groups (http://localhost:3000/dashboard/all-groups): fully approved groups for the cohort.
 - Give D1 marks — supervisor path (http://localhost:3000/dashboard/supervisor/give-d1-marks/): D1 marking workflow for supervisors.
-- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the supervisor parts of FMS.
+- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the supervisor parts of IntelliPMO.
 
 WORKFLOW NOTES:
 - Students register groups and select you — you act on Group Requests first when required by policy.
@@ -148,7 +151,7 @@ COMMON SUPERVISOR QUESTIONS:
   Evaluator: `
 ROLE: Evaluator (Defense / assessment panel member)
 
-WHAT FMS IS FOR YOU:
+WHAT IntelliPMO IS FOR YOU:
 Evaluators participate in Defense 1 (D1) panels: see which groups they assess and enter D1 marks
 on the evaluator path. You also have read access to general FYP reference pages.
 
@@ -160,7 +163,7 @@ NAVIGATION (YOUR MENU):
 - Complete FYP guide/lifecycle (http://localhost:3000/dashboard/fyp-guide): lifecycle documentation.
 - Panels for D1 (http://localhost:3000/dashboard/panels-d1): panels (including yours) and assigned groups for D1.
 - Give D1 marks — evaluator path (http://localhost:3000/dashboard/evaluator/give-d1-marks): enter or continue D1 evaluation for assigned groups.
-- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the evaluator parts of FMS.
+- Chat with FIA (http://localhost:3000/dashboard/fia): ask how to use the evaluator parts of IntelliPMO.
 
 WHAT YOU CANNOT DO:
 - You cannot configure sessions, approve student groups at institution level, or manage panels/assignment
