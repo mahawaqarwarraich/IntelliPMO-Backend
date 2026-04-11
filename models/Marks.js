@@ -1,26 +1,12 @@
 import mongoose from 'mongoose';
 
-const totalObtainedSchema = new mongoose.Schema(
-  {
-    total: { type: Number, default: 0, min: 0 },
-    obtained: { type: Number, default: 0, min: 0 },
-  },
-  { _id: false }
-);
-
 const marksSchema = new mongoose.Schema(
   {
-    d1: {
-      type: totalObtainedSchema,
-      default: () => ({ total: 80, obtained: 0 }),
-    },
-    d2: {
-      type: totalObtainedSchema,
-      default: () => ({ total: 80, obtained: 0 }),
-    },
-    d: {
-      type: totalObtainedSchema,
-      default: () => ({ total: 160, obtained: 0 }),
+    student_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Student',
+      required: true,
+      unique: true,
     },
     percentage: {
       type: Number,

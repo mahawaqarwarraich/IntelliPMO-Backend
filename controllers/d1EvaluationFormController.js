@@ -128,6 +128,7 @@
 import mongoose from 'mongoose';
 import { D1EvaluationForm } from '../models/D1EvaluationForm.js';
 import { Student } from '../models/Student.js';
+import { upsertStudentMarksFromEvaluationForms } from '../utils/studentMarksRollup.js';
 
 /**
  * New-model criteria keys where each field has:
@@ -284,6 +285,12 @@ export async function upsertD1EvaluationForm(req, res) {
       },
       { new: true }
     ).lean();
+
+    try {
+      await upsertStudentMarksFromEvaluationForms(studentId);
+    } catch (marksErr) {
+      console.error('upsertStudentMarksFromEvaluationForms (D1) error:', marksErr);
+    }
 
     return res.status(200).json({
       message: 'D1 evaluation form upserted successfully.',

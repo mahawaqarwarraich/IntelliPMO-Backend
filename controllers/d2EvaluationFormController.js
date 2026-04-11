@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { D2EvaluationForm } from '../models/D2EvaluationForm.js';
 import { Student } from '../models/Student.js';
+import { upsertStudentMarksFromEvaluationForms } from '../utils/studentMarksRollup.js';
 
 const CRITERIA_KEYS = [
   'understandingOfExistingSystem',
@@ -140,6 +141,12 @@ export async function upsertD2EvaluationForm(req, res) {
       },
       { new: true }
     ).lean();
+
+    try {
+      await upsertStudentMarksFromEvaluationForms(studentId);
+    } catch (marksErr) {
+      console.error('upsertStudentMarksFromEvaluationForms (D2) error:', marksErr);
+    }
 
     return res.status(200).json({
       message: 'D2 evaluation form upserted successfully.',
