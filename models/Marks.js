@@ -8,6 +8,11 @@ const marksSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    session_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Session',
+      default: null,
+    },
     percentage: {
       type: Number,
       default: 0,

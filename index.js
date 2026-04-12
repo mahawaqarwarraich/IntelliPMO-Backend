@@ -25,6 +25,8 @@ import d2EvaluationFormRoutes from './routes/d2EvaluationFormRoutes.js';
 import evaluatorGroupRoutes from './routes/evaluatorGroupRoutes.js';
 import fiaRoutes from './routes/fiaRoutes.js';
 import tokenRoutes from './routes/tokenRoutes.js';
+import marksRoutes from './routes/marksRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +37,8 @@ try {
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/auth', authRoutes);
 app.use('/uploads', express.static('uploads'));
 app.use('/images', express.static('images'));
 
@@ -59,6 +63,7 @@ app.use('/api/d1-evaluation-form', d1EvaluationFormRoutes);
 app.use('/api/d2-evaluation-form', d2EvaluationFormRoutes);
 app.use('/api/evaluator/groups', evaluatorGroupRoutes);
 app.use('/api/fia', fiaRoutes);
+app.use('/api/marks', marksRoutes);
 app.use('/', tokenRoutes);
 
 app.get('/api/health', (req, res) => {

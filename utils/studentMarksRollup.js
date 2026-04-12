@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Marks } from '../models/Marks.js';
 import { D1EvaluationForm } from '../models/D1EvaluationForm.js';
 import { D2EvaluationForm } from '../models/D2EvaluationForm.js';
+import { Student } from '../models/Student.js';
 
 /** Max combined marks across D1 + D2 (each form total caps at 80). */
 const COMBINED_DEFENSE_MAX = 160;
@@ -53,11 +54,15 @@ export async function upsertStudentMarksFromEvaluationForms(studentId) {
   const percentage = (combinedObtained / COMBINED_DEFENSE_MAX) * 100;
   const { grade, gpa } = gradeAndGpaFromPercentage(percentage);
 
+  const student = await Student.findById(sid).select('session_id').lean();
+  const sessionId = student?.session_id ?? null;
+
   const doc = await Marks.findOneAndUpdate(
     { student_id: sid },
     {
       $setOnInsert: { student_id: sid },
       $set: {
+        session_id: sessionId,
         percentage,
         grade,
         gpa,
