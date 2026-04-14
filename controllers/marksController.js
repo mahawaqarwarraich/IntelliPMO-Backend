@@ -65,17 +65,59 @@ export async function toggleShowGradeActiveSession(req, res) {
           }
         : { session_id: sessionOid };
 
-    const result = await Marks.updateMany(filter, [
-      { $set: { showGrade: { $eq: [{ $ifNull: ['$showGrade', false] }, false] } } },
-    ]);
+    const sample = await Marks.findOne(filter).select('showGrade').lean();
+    const nextShowGrade = !(sample?.showGrade ?? false);
+
+    const result = await Marks.updateMany(filter, { $set: { showGrade: nextShowGrade } });
 
     return res.status(200).json({
       message: 'Grade visibility toggled for marks in the active session.',
+      showGrade: nextShowGrade,
       matchedCount: result.matchedCount ?? 0,
       modifiedCount: result.modifiedCount ?? 0,
     });
   } catch (err) {
     console.error('toggleShowGradeActiveSession error:', err);
     return res.status(500).json({ message: err.message || 'Failed to toggle grade visibility.' });
+  }
+}
+
+/**
+ * GET /api/marks/show-grade-status (protected, Admin only).
+ * Returns whether grades are currently visible (showGrade=true) for the active session.
+ */
+export async function getShowGradeStatusActiveSession(req, res) {
+  try {
+    if (req.user?.role !== 'Admin') {
+      return res.status(403).json({ message: 'Only admins can view grade visibility.' });
+    }
+
+    const activeSession = await Session.findOne({ status: 'active' }).select('_id').lean();
+    if (!activeSession) {
+      return res.status(200).json({ showGrade: false, hasActiveSession: false });
+    }
+
+    const sessionOid = activeSession._id;
+    const studentIds = await Student.find({ session_id: sessionOid }).distinct('_id');
+    const oids = (studentIds || [])
+      .map((id) => String(id))
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    const filter =
+      oids.length > 0
+        ? {
+            $or: [{ session_id: sessionOid }, { student_id: { $in: oids } }],
+          }
+        : { session_id: sessionOid };
+
+    const sample = await Marks.findOne(filter).select('showGrade').lean();
+    return res.status(200).json({
+      hasActiveSession: true,
+      showGrade: sample?.showGrade ?? false,
+    });
+  } catch (err) {
+    console.error('getShowGradeStatusActiveSession error:', err);
+    return res.status(500).json({ message: err.message || 'Failed to load grade visibility.' });
   }
 }
