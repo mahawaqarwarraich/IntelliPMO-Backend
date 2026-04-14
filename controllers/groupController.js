@@ -22,15 +22,12 @@ export async function createGroup(req, res) {
       return res.status(403).json({ message: 'Only students can register a group.' });
     }
 
-    const currentStudent = await Student.findById(req.user.userId).select('session_id group_id').lean();
+    const currentStudent = await Student.findById(req.user.userId).select('session_id').lean();
     if (!currentStudent) {
       return res.status(404).json({ message: 'Student not found.' });
     }
     if (!currentStudent.session_id || !currentStudent.session_id.equals(activeSession._id)) {
       return res.status(403).json({ message: 'Your session is not active.' });
-    }
-    if (currentStudent.group_id) {
-      return res.status(400).json({ message: 'You are already in a group.' });
     }
 
     const { ideaName, ideaDescription, supervisor_id, members } = req.body;
@@ -94,8 +91,6 @@ export async function createGroup(req, res) {
     if (alreadyInGroup.length > 0) {
       return res.status(400).json({ message: 'One or more selected students are already in a group.' });
     }
-
-    
 
     const group = await Group.create({
       ideaName: nameTrimmed,
