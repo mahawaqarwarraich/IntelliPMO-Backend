@@ -4,44 +4,22 @@ import { Student } from '../models/Student.js';
 import { upsertStudentMarksFromEvaluationForms } from '../utils/studentMarksRollup.js';
 
 const CRITERIA_KEYS = [
-  'understandingOfExistingSystem',
-  'wellDefinedGoalsAndObjectives',
-  'conceptualArchitecture',
-  'presentationSkill',
-  'functionalRequirement',
-  'interfaces',
-  'usecaseDescription',
-  'usecaseDiagram',
-  'nonFunctionalAttribute',
-  'domainModelOrErd',
-  'classDiagramOrDataFlowDiagram',
-  'sequenceDiagramOrStateTransitionDiagram',
-  'stateChartDiagramOrArchitecturalDiagram',
-  'collaborationDiagramOrComponentDiagram',
-  'partialWorkingSystem',
+  'presentation',
+  'completeWorkingSystem',
   'supervisorMarks',
   'adminMarks',
 ];
 
 const EVALUATOR_RUBRIC_KEYS = [
-  'understandingOfExistingSystem',
-  'wellDefinedGoalsAndObjectives',
-  'conceptualArchitecture',
-  'presentationSkill',
-  'functionalRequirement',
-  'interfaces',
-  'usecaseDescription',
-  'usecaseDiagram',
-  'nonFunctionalAttribute',
-  'domainModelOrErd',
-  'classDiagramOrDataFlowDiagram',
-  'sequenceDiagramOrStateTransitionDiagram',
-  'stateChartDiagramOrArchitecturalDiagram',
-  'collaborationDiagramOrComponentDiagram',
-  'partialWorkingSystem',
+  'presentation',
+  'completeWorkingSystem',
 ];
 
-const EVALUATOR_MARKS_MAX = 52;
+const EVALUATOR_MARKS_MAX = 50;
+const RUBRIC_MAX_BY_KEY = {
+  presentation: 10,
+  completeWorkingSystem: 40,
+};
 
 function toNonNegativeNumber(v) {
   const n = typeof v === 'number' && Number.isFinite(v) ? v : Number(v);
@@ -112,7 +90,8 @@ export async function upsertD2EvaluationForm(req, res) {
         $setOnInsert: { student_id: studentId },
         ...(Object.keys(setOps).length ? { $set: setOps } : {}),
       },
-      { upsert: true, new: true }
+      // Ensure schema defaults are applied on insert (so maxMarks are present).
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     ).lean();
 
     let sum = 0;
@@ -133,6 +112,8 @@ export async function upsertD2EvaluationForm(req, res) {
       { student_id: studentId },
       {
         $set: {
+          'presentation.maxMarks': RUBRIC_MAX_BY_KEY.presentation,
+          'completeWorkingSystem.maxMarks': RUBRIC_MAX_BY_KEY.completeWorkingSystem,
           'total.maxMarks': cap,
           'total.obtainedMarks': obtainedTotal,
           'evaluatorMarks.maxMarks': EVALUATOR_MARKS_MAX,
