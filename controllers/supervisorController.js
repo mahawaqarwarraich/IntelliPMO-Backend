@@ -83,50 +83,50 @@ export async function registerSupervisor(req, res) {
       domain_id: domainDoc._id,
     });
 
-    const tokenValue = crypto.randomBytes(32).toString('hex');
-    await Token.create({
-      user_id: supervisor._id,
-      token: tokenValue,
-    });
+//     const tokenValue = crypto.randomBytes(32).toString('hex');
+//     await Token.create({
+//       user_id: supervisor._id,
+//       token: tokenValue,
+//     });
 
-    const { transporter, from } = createMailer();
-    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
-    const setPasswordUrl = `${frontendBaseUrl}/set-password?token=${encodeURIComponent(tokenValue)}`;
-    try {
-      await transporter.sendMail({
-        from,
-        to: supervisor.email,
-        subject: 'Set your password',
-        text: `Hi,
+//     const { transporter, from } = createMailer();
+//     const frontendBaseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:3000';
+//     const setPasswordUrl = `${frontendBaseUrl}/set-password?token=${encodeURIComponent(tokenValue)}`;
+//     try {
+//       await transporter.sendMail({
+//         from,
+//         to: supervisor.email,
+//         subject: 'Set your password',
+//         text: `Hi,
 
-Your account has been created on IntelliPMO.
+// Your account has been created on IntelliPMO.
 
-To get started, please set your password by clicking the link below:
+// To get started, please set your password by clicking the link below:
 
-Set Your Password
-${setPasswordUrl}
+// Set Your Password
+// ${setPasswordUrl}
 
-This link will expire in 1 hour for security reasons.
+// This link will expire in 1 hour for security reasons.
 
-If you did not expect this email, you can safely ignore it.
+// If you did not expect this email, you can safely ignore it.
 
-Thanks,
-IntelliPMO Support Team`,
-        html: `<div style="font-family:Segoe UI,system-ui,-apple-system,Arial,sans-serif;line-height:1.5;color:#111827;">
-<p>Hi,</p>
-<p>Your account has been created on IntelliPMO.</p>
-<p>To get started, please set your password by clicking the button below:</p>
-<p><a href="${setPasswordUrl}" style="display:inline-block;padding:12px 16px;background:#0097a7;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">👉 Set Your Password</a></p>
-<p><small>This link will expire in 1 hour for security reasons.</small></p>
-<p>If you did not expect this email, you can safely ignore it.</p>
-<p>Thanks,<br/>IntelliPMO Support Team</p>
-</div>`,
-      });
-    } catch (mailErr) {
-      await Token.deleteOne({ token: tokenValue }).catch(() => {});
-      await Supervisor.deleteOne({ _id: supervisor._id }).catch(() => {});
-      throw mailErr;
-    }
+// Thanks,
+// IntelliPMO Support Team`,
+//         html: `<div style="font-family:Segoe UI,system-ui,-apple-system,Arial,sans-serif;line-height:1.5;color:#111827;">
+// <p>Hi,</p>
+// <p>Your account has been created on IntelliPMO.</p>
+// <p>To get started, please set your password by clicking the button below:</p>
+// <p><a href="${setPasswordUrl}" style="display:inline-block;padding:12px 16px;background:#0097a7;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;">👉 Set Your Password</a></p>
+// <p><small>This link will expire in 1 hour for security reasons.</small></p>
+// <p>If you did not expect this email, you can safely ignore it.</p>
+// <p>Thanks,<br/>IntelliPMO Support Team</p>
+// </div>`,
+//       });
+//     } catch (mailErr) {
+//       await Token.deleteOne({ token: tokenValue }).catch(() => {});
+//       await Supervisor.deleteOne({ _id: supervisor._id }).catch(() => {});
+//       throw mailErr;
+//     }
 
     return res.status(201).json({
       message: 'Account created successfully.',
@@ -142,7 +142,7 @@ IntelliPMO Support Team`,
     if (err.code === 11000) {
       return res.status(409).json({
         message: 'You are already registered for this session.',
-      });
+    });
     }
     console.error('registerSupervisor error:', err);
     return res.status(500).json({
