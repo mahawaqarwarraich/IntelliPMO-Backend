@@ -56,7 +56,9 @@ export async function createGroup(req, res) {
 
     const maxGroups = activeSession.maxGroups ?? 0;
     const supervisorGroupsCount = supervisor.groupsCount ?? 0;
+    console.log(supervisorGroupsCount, maxGroups);
     if (supervisorGroupsCount >= maxGroups) {
+
       return res.status(400).json({ message: 'Supervisor capacity reached. Please choose another supervisor.' });
     }
 
@@ -461,7 +463,7 @@ export async function updateGroupByAdmin(req, res) {
       }
       const maxGroups = activeSession.maxGroups ?? 0;
       const groupsCount = supervisor.groupsCount ?? 0;
-      if (groupsCount > maxGroups) {
+      if (groupsCount == maxGroups) {
         return res.status(400).json({
           message: 'Supervisor capacity is reached. Please reject this request.',
         });
@@ -539,7 +541,7 @@ export async function updateGroupBySupervisor(req, res) {
       }
       const maxGroups = activeSession.maxGroups ?? 0;
       const groupsCount = supervisor.groupsCount ?? 0;
-      if (groupsCount > maxGroups) {
+      if (groupsCount == maxGroups) {
         return res.status(400).json({
           message: 'Supervisor capacity is reached. Please reject this request.',
         });
